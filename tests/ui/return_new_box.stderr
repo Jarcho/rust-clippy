@@ -1,0 +1,88 @@
+error: return of a new `Box`
+  --> $DIR/return_new_box.rs:17:17
+   |
+LL | fn box_new() -> Box<[u64; 4]> {
+   |                 ^^^^^^^^^^^^^
+   |
+   = note: `-D clippy::return-new-box` implied by `-D warnings`
+help: use the boxed type instead
+   |
+LL | fn box_new() -> [u64; 4] {
+LL |     [0; 4]
+   |
+
+error: return of a new `Box`
+  --> $DIR/return_new_box.rs:21:18
+   |
+LL | fn box_from() -> Box<[u64; 4]> {
+   |                  ^^^^^^^^^^^^^
+   |
+help: use the boxed type instead
+   |
+LL | fn box_from() -> [u64; 4] {
+LL |     [0; 4]
+   |
+
+error: return of a new `Box`
+  --> $DIR/return_new_box.rs:25:14
+   |
+LL | fn from() -> Box<[u64; 4]> {
+   |              ^^^^^^^^^^^^^
+   |
+help: use the boxed type instead
+   |
+LL | fn from() -> [u64; 4] {
+LL |     [0; 4]
+   |
+
+error: return of a new `Box`
+  --> $DIR/return_new_box.rs:29:14
+   |
+LL | fn into() -> Box<[u64; 4]> {
+   |              ^^^^^^^^^^^^^
+   |
+help: use the boxed type instead
+   |
+LL | fn into() -> [u64; 4] {
+LL |     [0; 4]
+   |
+
+error: return of a new `Box`
+  --> $DIR/return_new_box.rs:33:24
+   |
+LL | fn return_box_new() -> Box<[u64; 4]> {
+   |                        ^^^^^^^^^^^^^
+   |
+help: use the boxed type instead
+   |
+LL | fn return_box_new() -> [u64; 4] {
+LL |     return [0; 4];
+   |
+
+error: return of a new `Box`
+  --> $DIR/return_new_box.rs:37:28
+   |
+LL | fn return_cond(b: bool) -> Box<[u64; 4]> {
+   |                            ^^^^^^^^^^^^^
+   |
+help: use the boxed type instead
+   |
+LL | fn return_cond(b: bool) -> [u64; 4] {
+LL |     if b {
+LL |         [0; 4]
+   |
+
+error: return of a new `Box`
+  --> $DIR/return_new_box.rs:46:20
+   |
+LL |     fn nested() -> Box<u32> {
+   |                    ^^^^^^^^
+   |
+help: use the boxed type instead
+   |
+LL |     fn nested() -> u32 {
+LL |         0
+   |
+
+error: aborting due to 7 previous errors
+

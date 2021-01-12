@@ -306,6 +306,7 @@ mod ref_option_ref;
 mod reference;
 mod regex;
 mod repeat_once;
+mod return_new_box;
 mod returns;
 mod self_assignment;
 mod serde_api;
@@ -856,6 +857,7 @@ pub fn register_plugins(store: &mut rustc_lint::LintStore, sess: &Session, conf:
         &regex::INVALID_REGEX,
         &regex::TRIVIAL_REGEX,
         &repeat_once::REPEAT_ONCE,
+        &return_new_box::RETURN_NEW_BOX,
         &returns::LET_AND_RETURN,
         &returns::NEEDLESS_RETURN,
         &self_assignment::SELF_ASSIGNMENT,
@@ -1229,6 +1231,7 @@ pub fn register_plugins(store: &mut rustc_lint::LintStore, sess: &Session, conf:
     store.register_late_pass(|| box vec_init_then_push::VecInitThenPush::default());
     store.register_late_pass(move || box types::PtrAsPtr::new(msrv));
     store.register_late_pass(|| box case_sensitive_file_extension_comparisons::CaseSensitiveFileExtensionComparisons);
+    store.register_late_pass(|| box return_new_box::ReturnNewBox::default());
 
     store.register_group(true, "clippy::restriction", Some("clippy_restriction"), vec![
         LintId::of(&arithmetic::FLOAT_ARITHMETIC),
@@ -1597,6 +1600,7 @@ pub fn register_plugins(store: &mut rustc_lint::LintStore, sess: &Session, conf:
         LintId::of(&regex::INVALID_REGEX),
         LintId::of(&regex::TRIVIAL_REGEX),
         LintId::of(&repeat_once::REPEAT_ONCE),
+        LintId::of(&return_new_box::RETURN_NEW_BOX),
         LintId::of(&returns::LET_AND_RETURN),
         LintId::of(&returns::NEEDLESS_RETURN),
         LintId::of(&self_assignment::SELF_ASSIGNMENT),
@@ -1759,6 +1763,7 @@ pub fn register_plugins(store: &mut rustc_lint::LintStore, sess: &Session, conf:
         LintId::of(&redundant_field_names::REDUNDANT_FIELD_NAMES),
         LintId::of(&redundant_static_lifetimes::REDUNDANT_STATIC_LIFETIMES),
         LintId::of(&regex::TRIVIAL_REGEX),
+        LintId::of(&return_new_box::RETURN_NEW_BOX),
         LintId::of(&returns::LET_AND_RETURN),
         LintId::of(&returns::NEEDLESS_RETURN),
         LintId::of(&single_component_path_imports::SINGLE_COMPONENT_PATH_IMPORTS),
