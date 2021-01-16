@@ -1,0 +1,10 @@
+error: redundant dereference
+  --> $DIR/redundant_deref.rs:6:9
+   |
+LL |     foo(&*String::new());
+   |         ^^^^^^^^^^^^^^^ help: remove the dereference: `&String::new()`
+   |
+   = note: `-D clippy::redundant-deref` implied by `-D warnings`
+
+error: aborting due to previous error
+

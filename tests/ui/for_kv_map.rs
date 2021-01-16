@@ -1,5 +1,5 @@
 #![warn(clippy::for_kv_map)]
-#![allow(clippy::used_underscore_binding)]
+#![allow(clippy::used_underscore_binding, clippy::redundant_deref)]
 
 use std::collections::*;
 use std::rc::Rc;
