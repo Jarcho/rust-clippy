@@ -153,7 +153,6 @@ impl ReturnNewBox {
 }
 
 fn get_new_box_sugg_spans(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>, spans: &mut Vec<(Span, Span)>) -> bool {
-    // needed to catch `match .. { .., _ => panic!(), }`
     if cx
         .typeck_results()
         .expr_ty(expr)
@@ -193,6 +192,9 @@ fn get_new_box_sugg_spans(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>, spans: &
         }
         ExprKind::Block(Block { expr: None, .. }, _) => true,
         ExprKind::Block(Block { expr: Some(expr), .. }, _) => get_new_box_sugg_spans(cx, expr, spans),
+        ExprKind::If(_, expr1, Some(expr2)) => {
+            get_new_box_sugg_spans(cx, expr1, spans) && get_new_box_sugg_spans(cx, expr2, spans)
+        },
         ExprKind::Match(_, arms, _) => arms.iter().all(|arm| get_new_box_sugg_spans(cx, arm.body, spans)),
         _ => false,
     }
