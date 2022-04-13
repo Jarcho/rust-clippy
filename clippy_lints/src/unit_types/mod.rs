@@ -98,12 +98,12 @@ declare_clippy_lint! {
 
 declare_lint_pass!(UnitTypes => [LET_UNIT_VALUE, UNIT_CMP, UNIT_ARG]);
 
-impl LateLintPass<'_> for UnitTypes {
-    fn check_stmt(&mut self, cx: &LateContext<'_>, stmt: &Stmt<'_>) {
+impl<'tcx> LateLintPass<'tcx> for UnitTypes {
+    fn check_stmt(&mut self, cx: &LateContext<'tcx>, stmt: &'tcx Stmt<'tcx>) {
         let_unit_value::check(cx, stmt);
     }
 
-    fn check_expr(&mut self, cx: &LateContext<'_>, expr: &Expr<'_>) {
+    fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
         unit_cmp::check(cx, expr);
         unit_arg::check(cx, expr);
     }
