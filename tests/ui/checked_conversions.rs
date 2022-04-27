@@ -1,6 +1,7 @@
 // run-rustfix
 
 #![allow(
+    clippy::manual_range_contains,
     clippy::cast_lossless,
     // Int::max_value will be deprecated in the future
     deprecated,

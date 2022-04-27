@@ -97,7 +97,7 @@ fn upcast_comparison_bounds_err<'tcx>(
     if let Some((lb, ub)) = lhs_bounds {
         if let Some(norm_rhs_val) = constant_full_int(cx, cx.typeck_results(), rhs) {
             if rel == Rel::Eq || rel == Rel::Ne {
-                if norm_rhs_val < lb || norm_rhs_val > ub {
+                if !(lb..=ub).contains(&norm_rhs_val) {
                     err_upcast_comparison(cx, span, lhs, rel == Rel::Ne);
                 }
             } else if match rel {
