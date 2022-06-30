@@ -13,6 +13,7 @@
 //! if the span is not from a `macro_rules` based macro.
 
 use rustc_ast::ast::{IntTy, LitIntType, LitKind, StrStyle, UintTy};
+use rustc_hir::intravisit::FnKind;
 use rustc_hir::{
     Block, BlockCheckMode, Destination, Expr, ExprKind, FieldDef, FnHeader, Impl, ImplItem, ImplItemKind, IsAuto, Item,
     ItemKind, LoopSource, MatchSource, QPath, TraitItem, TraitItemKind, UnOp, UnsafeSource, Unsafety, Variant,
@@ -244,6 +245,23 @@ fn variant_search_pat(v: &Variant<'_>) -> (Pat, Pat) {
     }
 }
 
+fn fn_kind_pat(kind: &FnKind<'_>) -> (Pat, Pat) {
+    let (start_pat, end_pat, visibility) = match kind {
+        FnKind::ItemFn(.., header, visibility) => (fn_header_search_pat(*header), Pat::Str(""), Some(visibility.node)),
+        FnKind::Method(.., sig, visibility) => (
+            fn_header_search_pat(sig.header),
+            Pat::Str(""),
+            visibility.as_ref().map(|spanned| spanned.node),
+        ),
+        FnKind::Closure => return (Pat::Str(""), Pat::Str("")),
+    };
+    if matches!(visibility, Some(VisibilityKind::Inherited)) {
+        (start_pat, end_pat)
+    } else {
+        (Pat::Str("pub"), end_pat)
+    }
+}
+
 pub trait WithSearchPat {
     type Context: LintContext;
     fn search_pat(&self, cx: &Self::Context) -> (Pat, Pat);
@@ -278,6 +296,11 @@ impl_with_search_pat!(LateContext: Variant with variant_search_pat);
 pub fn is_from_proc_macro<T: WithSearchPat>(cx: &T::Context, item: &T) -> bool {
     let (start_pat, end_pat) = item.search_pat(cx);
     !span_matches_pat(cx.sess(), item.span(), start_pat, end_pat)
+}
+
+pub fn is_from_proc_macro_and_span(cx: &LateContext<'_>, item: &FnKind<'_>, span: Span) -> bool {
+    let (start_pat, end_pat) = fn_kind_pat(item);
+    !span_matches_pat(cx.sess(), span, start_pat, end_pat)
 }
 
 /// Checks if the span actually refers to a match expression
