@@ -289,6 +289,18 @@ impl_with_search_pat!(LateContext: ImplItem with impl_item_search_pat);
 impl_with_search_pat!(LateContext: FieldDef with field_def_search_pat);
 impl_with_search_pat!(LateContext: Variant with variant_search_pat);
 
+impl<'cx> WithSearchPat for (&FnKind<'cx>, Span) {
+    type Context = LateContext<'cx>;
+
+    fn search_pat(&self, _cx: &Self::Context) -> (Pat, Pat) {
+        fn_kind_pat(&self.0)
+    }
+
+    fn span(&self) -> Span {
+        self.1
+    }
+}
+
 /// Checks if the item likely came from a proc-macro.
 ///
 /// This should be called after `in_external_macro` and the initial pattern matching of the ast as
@@ -296,11 +308,6 @@ impl_with_search_pat!(LateContext: Variant with variant_search_pat);
 pub fn is_from_proc_macro<T: WithSearchPat>(cx: &T::Context, item: &T) -> bool {
     let (start_pat, end_pat) = item.search_pat(cx);
     !span_matches_pat(cx.sess(), item.span(), start_pat, end_pat)
-}
-
-pub fn is_from_proc_macro_and_span(cx: &LateContext<'_>, item: &FnKind<'_>, span: Span) -> bool {
-    let (start_pat, end_pat) = fn_kind_pat(item);
-    !span_matches_pat(cx.sess(), span, start_pat, end_pat)
 }
 
 /// Checks if the span actually refers to a match expression
