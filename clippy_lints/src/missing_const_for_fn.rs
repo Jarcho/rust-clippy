@@ -146,13 +146,17 @@ impl<'tcx> LateLintPass<'tcx> for MissingConstForFn {
             }
         }
 
+        if is_from_proc_macro(cx, &(&kind, body, span)) {
+            return;
+        }
+
         let mir = cx.tcx.optimized_mir(def_id);
 
         if let Err((span, err)) = is_min_const_fn(cx.tcx, mir, self.msrv.as_ref()) {
             if cx.tcx.is_const_fn_raw(def_id.to_def_id()) {
                 cx.tcx.sess.span_err(span, err.as_ref());
             }
-        } else if !is_from_proc_macro(cx, &(&kind, body, span)) {
+        } else {
             span_lint(cx, MISSING_CONST_FOR_FN, span, "this could be a `const fn`");
         }
     }
