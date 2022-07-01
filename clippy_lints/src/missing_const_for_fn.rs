@@ -91,7 +91,7 @@ impl<'tcx> LateLintPass<'tcx> for MissingConstForFn {
         cx: &LateContext<'tcx>,
         kind: FnKind<'tcx>,
         _: &FnDecl<'_>,
-        _: &Body<'_>,
+        body: &Body<'tcx>,
         span: Span,
         hir_id: HirId,
     ) {
@@ -152,7 +152,7 @@ impl<'tcx> LateLintPass<'tcx> for MissingConstForFn {
             if cx.tcx.is_const_fn_raw(def_id.to_def_id()) {
                 cx.tcx.sess.span_err(span, err.as_ref());
             }
-        } else if !is_from_proc_macro(cx, &(&kind, span)) {
+        } else if !is_from_proc_macro(cx, &(&kind, body, span)) {
             span_lint(cx, MISSING_CONST_FOR_FN, span, "this could be a `const fn`");
         }
     }

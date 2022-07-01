@@ -15,8 +15,8 @@
 use rustc_ast::ast::{IntTy, LitIntType, LitKind, StrStyle, UintTy};
 use rustc_hir::intravisit::FnKind;
 use rustc_hir::{
-    Block, BlockCheckMode, Destination, Expr, ExprKind, FieldDef, FnHeader, Impl, ImplItem, ImplItemKind, IsAuto, Item,
-    ItemKind, LoopSource, MatchSource, QPath, TraitItem, TraitItemKind, UnOp, UnsafeSource, Unsafety, Variant,
+    Block, BlockCheckMode, Body, Destination, Expr, ExprKind, FieldDef, FnHeader, Impl, ImplItem, ImplItemKind, IsAuto,
+    Item, ItemKind, LoopSource, MatchSource, QPath, TraitItem, TraitItemKind, UnOp, UnsafeSource, Unsafety, Variant,
     VariantData, VisibilityKind, YieldSource,
 };
 use rustc_lint::{LateContext, LintContext};
@@ -245,7 +245,7 @@ fn variant_search_pat(v: &Variant<'_>) -> (Pat, Pat) {
     }
 }
 
-fn fn_kind_pat(kind: &FnKind<'_>) -> (Pat, Pat) {
+fn fn_kind_pat(tcx: TyCtxt<'_>, kind: &FnKind<'_>, body: &Body<'_>) -> (Pat, Pat) {
     let (start_pat, end_pat, visibility) = match kind {
         FnKind::ItemFn(.., header, visibility) => (fn_header_search_pat(*header), Pat::Str(""), Some(visibility.node)),
         FnKind::Method(.., sig, visibility) => (
@@ -253,7 +253,7 @@ fn fn_kind_pat(kind: &FnKind<'_>) -> (Pat, Pat) {
             Pat::Str(""),
             visibility.as_ref().map(|spanned| spanned.node),
         ),
-        FnKind::Closure => return (Pat::Str(""), Pat::Str("")),
+        FnKind::Closure => return (Pat::Str(""), expr_search_pat(tcx, &body.value).1),
     };
     if matches!(visibility, Some(VisibilityKind::Inherited)) {
         (start_pat, end_pat)
@@ -289,15 +289,15 @@ impl_with_search_pat!(LateContext: ImplItem with impl_item_search_pat);
 impl_with_search_pat!(LateContext: FieldDef with field_def_search_pat);
 impl_with_search_pat!(LateContext: Variant with variant_search_pat);
 
-impl<'cx> WithSearchPat for (&FnKind<'cx>, Span) {
+impl<'cx> WithSearchPat for (&FnKind<'cx>, &Body<'cx>, Span) {
     type Context = LateContext<'cx>;
 
-    fn search_pat(&self, _cx: &Self::Context) -> (Pat, Pat) {
-        fn_kind_pat(&self.0)
+    fn search_pat(&self, cx: &Self::Context) -> (Pat, Pat) {
+        fn_kind_pat(cx.tcx, &self.0, &self.1)
     }
 
     fn span(&self) -> Span {
-        self.1
+        self.2
     }
 }
 
