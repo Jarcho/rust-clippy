@@ -381,6 +381,441 @@ mod zero_repeat_side_effects;
 mod zero_sized_map_values;
 // end lints modules, do not remove this comment, it’s used in `update_lints`
 
+mod combined {
+    use crate::allow_attributes::AllowAttribute;
+    use crate::arc_with_non_send_sync::ArcWithNonSendSync;
+    use crate::as_conversions::AsConversions;
+    use crate::asm_syntax::{InlineAsmX86AttSyntax, InlineAsmX86IntelSyntax};
+    use crate::assertions_on_constants::AssertionsOnConstants;
+    use crate::assertions_on_result_states::AssertionsOnResultStates;
+    use crate::async_yields_async::AsyncYieldsAsync;
+    use crate::attrs::Attributes;
+    use crate::blocks_in_conditions::BlocksInConditions;
+    use crate::bool_assert_comparison::BoolAssertComparison;
+    use crate::bool_to_int_with_if::BoolToIntWithIf;
+    use crate::booleans::NonminimalBool;
+    use crate::borrow_deref_ref::BorrowDerefRef;
+    use crate::box_default::BoxDefault;
+    use crate::collapsible_if::CollapsibleIf;
+    use crate::collection_is_never_read::CollectionIsNeverRead;
+    use crate::comparison_chain::ComparisonChain;
+    use crate::copy_iterator::CopyIterator;
+    use crate::crate_in_macro_def::CrateInMacroDef;
+    use crate::create_dir::CreateDir;
+    use crate::default::Default;
+    use crate::default_constructed_unit_structs::DefaultConstructedUnitStructs;
+    use crate::default_instead_of_iter_empty::DefaultIterEmpty;
+    use crate::default_numeric_fallback::DefaultNumericFallback;
+    use crate::default_union_representation::DefaultUnionRepresentation;
+    use crate::derive::Derive;
+    use crate::double_parens::DoubleParens;
+    use crate::drop_forget_ref::DropForgetRef;
+    use crate::duplicate_mod::DuplicateMod;
+    use crate::else_if_without_else::ElseIfWithoutElse;
+    use crate::empty_drop::EmptyDrop;
+    use crate::empty_enum::EmptyEnum;
+    use crate::empty_with_brackets::EmptyWithBrackets;
+    use crate::endian_bytes::EndianBytes;
+    use crate::entry::HashMapPass;
+    use crate::enum_clike::UnportableVariant;
+    use crate::equatable_if_let::PatternEquality;
+    use crate::error_impl_error::ErrorImplError;
+    use crate::eta_reduction::EtaReduction;
+    use crate::exit::Exit;
+    use crate::fallible_impl_from::FallibleImplFrom;
+    use crate::float_literal::FloatLiteral;
+    use crate::floating_point_arithmetic::FloatingPointArithmetic;
+    use crate::format_push_string::FormatPushString;
+    use crate::formatting::Formatting;
+    use crate::four_forward_slashes::FourForwardSlashes;
+    use crate::from_raw_with_void_ptr::FromRawWithVoidPtr;
+    use crate::from_str_radix_10::FromStrRadix10;
+    use crate::future_not_send::FutureNotSend;
+    use crate::if_let_mutex::IfLetMutex;
+    use crate::if_not_else::IfNotElse;
+    use crate::ignored_unit_patterns::IgnoredUnitPatterns;
+    use crate::impl_hash_with_borrow_str_and_bytes::ImplHashWithBorrowStrBytes;
+    use crate::implicit_hasher::ImplicitHasher;
+    use crate::implicit_return::ImplicitReturn;
+    use crate::implicit_saturating_add::ImplicitSaturatingAdd;
+    use crate::implicit_saturating_sub::ImplicitSaturatingSub;
+    use crate::implied_bounds_in_impls::ImpliedBoundsInImpls;
+    use crate::inconsistent_struct_constructor::InconsistentStructConstructor;
+    use crate::ineffective_open_options::IneffectiveOpenOptions;
+    use crate::infinite_iter::InfiniteIter;
+    use crate::inherent_impl::MultipleInherentImpl;
+    use crate::inherent_to_string::InherentToString;
+    use crate::init_numbered_fields::NumberedFields;
+    use crate::inline_fn_without_body::InlineFnWithoutBody;
+    use crate::int_plus_one::IntPlusOne;
+    use crate::integer_division_remainder_used::IntegerDivisionRemainderUsed;
+    use crate::invalid_upcast_comparisons::InvalidUpcastComparisons;
+    use crate::items_after_statements::ItemsAfterStatements;
+    use crate::items_after_test_module::ItemsAfterTestModule;
+    use crate::iter_over_hash_type::IterOverHashType;
+    use crate::iter_without_into_iter::IterWithoutIntoIter;
+    use crate::len_zero::LenZero;
+    use crate::let_if_seq::LetIfSeq;
+    use crate::let_underscore::LetUnderscore;
+    use crate::let_with_type_underscore::UnderscoreTyped;
+    use crate::lifetimes::Lifetimes;
+    use crate::lines_filter_map_ok::LinesFilterMapOk;
+    use crate::macro_use::MacroUseImports;
+    use crate::main_recursion::MainRecursion;
+    use crate::manual_async_fn::ManualAsyncFn;
+    use crate::manual_float_methods::ManualFloatMethods;
+    use crate::manual_range_patterns::ManualRangePatterns;
+    use crate::manual_slice_size_calculation::ManualSliceSizeCalculation;
+    use crate::manual_string_new::ManualStringNew;
+    use crate::manual_unwrap_or_default::ManualUnwrapOrDefault;
+    use crate::map_unit_fn::MapUnit;
+    use crate::match_result_ok::MatchResultOk;
+    use crate::minmax::MinMaxPass;
+    use crate::misc::LintPass;
+    use crate::misc_early::MiscEarlyLints;
+    use crate::mismatching_type_param_order::TypeParamMismatch;
+    use crate::missing_assert_message::MissingAssertMessage;
+    use crate::missing_asserts_for_indexing::MissingAssertsForIndexing;
+    use crate::missing_fields_in_debug::MissingFieldsInDebug;
+    use crate::missing_inline::MissingInline;
+    use crate::missing_trait_methods::MissingTraitMethods;
+    use crate::mixed_read_write_in_expression::EvalOrderDependence;
+    use crate::multi_assignments::MultiAssignments;
+    use crate::multiple_bound_locations::MultipleBoundLocations;
+    use crate::multiple_unsafe_ops_per_block::MultipleUnsafeOpsPerBlock;
+    use crate::mut_mut::MutMut;
+    use crate::mut_reference::UnnecessaryMutPassed;
+    use crate::mutable_debug_assertion::DebugAssertWithMutCall;
+    use crate::mutex_atomic::Mutex;
+    use crate::needless_arbitrary_self_type::NeedlessArbitrarySelfType;
+    use crate::needless_bool::{BoolComparison, NeedlessBool};
+    use crate::needless_borrowed_ref::NeedlessBorrowedRef;
+    use crate::needless_continue::NeedlessContinue;
+    use crate::needless_else::NeedlessElse;
+    use crate::needless_for_each::NeedlessForEach;
+    use crate::needless_if::NeedlessIf;
+    use crate::needless_late_init::NeedlessLateInit;
+    use crate::needless_maybe_sized::NeedlessMaybeSized;
+    use crate::needless_parens_on_range_literals::NeedlessParensOnRangeLiterals;
+    use crate::needless_pass_by_value::NeedlessPassByValue;
+    use crate::needless_update::NeedlessUpdate;
+    use crate::neg_cmp_op_on_partial_ord::NoNegCompOpForPartialOrd;
+    use crate::neg_multiply::NegMultiply;
+    use crate::new_without_default::NewWithoutDefault;
+    use crate::no_effect::NoEffect;
+    use crate::no_mangle_with_rust_abi::NoMangleWithRustAbi;
+    use crate::non_canonical_impls::NonCanonicalImpls;
+    use crate::non_octal_unix_permissions::NonOctalUnixPermissions;
+    use crate::octal_escapes::OctalEscapes;
+    use crate::only_used_in_recursion::OnlyUsedInRecursion;
+    use crate::option_env_unwrap::OptionEnvUnwrap;
+    use crate::option_if_let_else::OptionIfLetElse;
+    use crate::overflow_check_conditional::OverflowCheckConditional;
+    use crate::panic_in_result_fn::PanicInResultFn;
+    use crate::partial_pub_fields::PartialPubFields;
+    use crate::partialeq_ne_impl::PartialEqNeImpl;
+    use crate::partialeq_to_none::PartialeqToNone;
+    use crate::pattern_type_mismatch::PatternTypeMismatch;
+    use crate::permissions_set_readonly_false::PermissionsSetReadonlyFalse;
+    use crate::precedence::Precedence;
+    use crate::ptr::Ptr;
+    use crate::ptr_offset_with_cast::PtrOffsetWithCast;
+    use crate::pub_use::PubUse;
+    use crate::question_mark_used::QuestionMarkUsed;
+    use crate::rc_clone_in_vec_init::RcCloneInVecInit;
+    use crate::read_zero_byte_vec::ReadZeroByteVec;
+    use crate::redundant_async_block::RedundantAsyncBlock;
+    use crate::redundant_clone::RedundantClone;
+    use crate::redundant_closure_call::RedundantClosureCall;
+    use crate::redundant_else::RedundantElse;
+    use crate::redundant_locals::RedundantLocals;
+    use crate::redundant_pub_crate::RedundantPubCrate;
+    use crate::redundant_slicing::RedundantSlicing;
+    use crate::redundant_type_annotations::RedundantTypeAnnotations;
+    use crate::ref_option_ref::RefOptionRef;
+    use crate::ref_patterns::RefPatterns;
+    use crate::reference::DerefAddrOf;
+    use crate::regex::Regex;
+    use crate::repeat_vec_with_capacity::RepeatVecWithCapacity;
+    use crate::reserve_after_initialization::ReserveAfterInitialization;
+    use crate::return_self_not_must_use::ReturnSelfNotMustUse;
+    use crate::returns::Return;
+    use crate::semicolon_if_nothing_returned::SemicolonIfNothingReturned;
+    use crate::serde_api::SerdeApi;
+    use crate::shadow::Shadow;
+    use crate::single_char_lifetime_names::SingleCharLifetimeNames;
+    use crate::single_component_path_imports::SingleComponentPathImports;
+    use crate::single_range_in_vec_init::SingleRangeInVecInit;
+    use crate::size_of_ref::SizeOfRef;
+    use crate::slow_vector_initialization::SlowVectorInit;
+    use crate::std_instead_of_core::StdReexports;
+    use crate::strings::{StrToString, StringAdd, StringLitAsBytes, StringToString, TrimSplitWhitespace};
+    use crate::strlen_on_c_strings::StrlenOnCStrings;
+    use crate::suspicious_operation_groupings::SuspiciousOperationGroupings;
+    use crate::suspicious_trait_impl::SuspiciousImpl;
+    use crate::suspicious_xor_used_as_pow::ConfusingXorAndPow;
+    use crate::swap::Swap;
+    use crate::swap_ptr_to_ref::SwapPtrToRef;
+    use crate::tabs_in_doc_comments::TabsInDocComments;
+    use crate::temporary_assignment::TemporaryAssignment;
+    use crate::tests_outside_test_module::TestsOutsideTestModule;
+    use crate::to_digit_is_some::ToDigitIsSome;
+    use crate::to_string_trait_impl::ToStringTraitImpl;
+    use crate::trailing_empty_array::TrailingEmptyArray;
+    use crate::unicode::Unicode;
+    use crate::uninhabited_references::UninhabitedReferences;
+    use crate::uninit_vec::UninitVec;
+    use crate::unit_return_expecting_ord::UnitReturnExpectingOrd;
+    use crate::unit_types::UnitTypes;
+    use crate::unnamed_address::UnnamedAddress;
+    use crate::unnecessary_map_on_constructor::UnnecessaryMapOnConstructor;
+    use crate::unnecessary_owned_empty_strings::UnnecessaryOwnedEmptyStrings;
+    use crate::unnecessary_self_imports::UnnecessarySelfImports;
+    use crate::unnecessary_struct_initialization::UnnecessaryStruct;
+    use crate::unsafe_removed_from_name::UnsafeNameRemoval;
+    use crate::unused_async::UnusedAsync;
+    use crate::unused_io_amount::UnusedIoAmount;
+    use crate::unused_peekable::UnusedPeekable;
+    use crate::unused_rounding::UnusedRounding;
+    use crate::unused_unit::UnusedUnit;
+    use crate::unwrap::Unwrap;
+    use crate::unwrap_in_result::UnwrapInResult;
+    use crate::useless_conversion::UselessConversion;
+    use crate::vec_init_then_push::VecInitThenPush;
+    use crate::visibility::Visibility;
+    use crate::zero_div_zero::ZeroDiv;
+    use crate::zero_repeat_side_effects::ZeroRepeatSideEffects;
+    use crate::zero_sized_map_values::ZeroSizedMapValues;
+
+    rustc_lint::early_lint_methods!(
+        rustc_lint::declare_combined_early_lint_pass,
+        [
+            pub(crate) ClippyEarlyLintPass,
+            [
+                SuspiciousOperationGroupings: SuspiciousOperationGroupings,
+                DerefAddrOf: DerefAddrOf,
+                DoubleParens: DoubleParens,
+                UnsafeNameRemoval: UnsafeNameRemoval,
+                ElseIfWithoutElse: ElseIfWithoutElse,
+                IntPlusOne: IntPlusOne,
+                Formatting: Formatting,
+                MiscEarlyLints: MiscEarlyLints,
+                UnusedUnit: UnusedUnit,
+                CollapsibleIf: CollapsibleIf,
+                Precedence: Precedence,
+                NeedlessContinue: NeedlessContinue,
+                RedundantElse: RedundantElse,
+                NeedlessArbitrarySelfType: NeedlessArbitrarySelfType,
+                TabsInDocComments: TabsInDocComments,
+                OptionEnvUnwrap: OptionEnvUnwrap,
+                InlineAsmX86AttSyntax: InlineAsmX86AttSyntax,
+                InlineAsmX86IntelSyntax: InlineAsmX86IntelSyntax,
+                OctalEscapes: OctalEscapes,
+                SingleCharLifetimeNames: SingleCharLifetimeNames,
+                CrateInMacroDef: CrateInMacroDef,
+                EmptyWithBrackets: EmptyWithBrackets,
+                PubUse: PubUse,
+                UnusedRounding: UnusedRounding,
+                MultiAssignments: MultiAssignments,
+                PartialPubFields: PartialPubFields,
+                RefPatterns: RefPatterns,
+                NeedlessElse: NeedlessElse,
+                Visibility: Visibility,
+                MultipleBoundLocations: MultipleBoundLocations,
+                UnnecessarySelfImports: UnnecessarySelfImports
+                SingleComponentPathImports: SingleComponentPathImports::default(),
+                DuplicateMod: DuplicateMod::default(),
+            ]
+        ]
+    );
+
+    rustc_lint::late_lint_methods!(
+        rustc_lint::declare_combined_late_lint_pass,
+        [
+            pub(crate) ClippyLateLintPass,
+            [
+                NonminimalBool: NonminimalBool,
+                UnportableVariant: UnportableVariant,
+                FloatLiteral: FloatLiteral,
+                Ptr: Ptr,
+                NeedlessBool: NeedlessBool,
+                BoolComparison: BoolComparison,
+                NeedlessForEach: NeedlessForEach,
+                LintPass: LintPass,
+                EtaReduction: EtaReduction,
+                MutMut: MutMut,
+                UnnecessaryMutPassed: UnnecessaryMutPassed,
+                LenZero: LenZero,
+                Attributes: Attributes,
+                BlocksInConditions: BlocksInConditions,
+                Unicode: Unicode,
+                UninitVec: UninitVec,
+                UnitReturnExpectingOrd: UnitReturnExpectingOrd,
+                StringAdd: StringAdd,
+                ImplicitReturn: ImplicitReturn,
+                ImplicitSaturatingSub: ImplicitSaturatingSub,
+                DefaultNumericFallback: DefaultNumericFallback,
+                InconsistentStructConstructor: InconsistentStructConstructor,
+                NonOctalUnixPermissions: NonOctalUnixPermissions,
+                Lifetimes: Lifetimes,
+                HashMapPass: HashMapPass,
+                MinMaxPass: MinMaxPass,
+                ZeroDiv: ZeroDiv,
+                Mutex: Mutex,
+                NeedlessUpdate: NeedlessUpdate,
+                NeedlessBorrowedRef: NeedlessBorrowedRef,
+                BorrowDerefRef: BorrowDerefRef,
+                UnitTypes: UnitTypes,
+                StringLitAsBytes: StringLitAsBytes,
+                Derive: Derive,
+                DropForgetRef: DropForgetRef,
+                EmptyEnum: EmptyEnum,
+                InvalidUpcastComparisons: InvalidUpcastComparisons,
+                Swap: Swap,
+                NegMultiply: NegMultiply,
+                LetIfSeq: LetIfSeq,
+                EvalOrderDependence: EvalOrderDependence,
+                SerdeApi: SerdeApi,
+                TemporaryAssignment: TemporaryAssignment,
+                CopyIterator: CopyIterator,
+                OverflowCheckConditional: OverflowCheckConditional,
+                MissingInline: MissingInline,
+                MatchResultOk: MatchResultOk,
+                PartialEqNeImpl: PartialEqNeImpl,
+                UnusedIoAmount: UnusedIoAmount,
+                NeedlessPassByValue: NeedlessPassByValue,
+                RefOptionRef: RefOptionRef,
+                InfiniteIter: InfiniteIter,
+                InlineFnWithoutBody: InlineFnWithoutBody,
+                ImplicitHasher: ImplicitHasher,
+                FallibleImplFrom: FallibleImplFrom,
+                QuestionMarkUsed: QuestionMarkUsed,
+                SuspiciousImpl: SuspiciousImpl,
+                MapUnit: MapUnit,
+                MultipleInherentImpl: MultipleInherentImpl,
+                NoNegCompOpForPartialOrd: NoNegCompOpForPartialOrd,
+                Unwrap: Unwrap,
+                PtrOffsetWithCast: PtrOffsetWithCast,
+                RedundantClone: RedundantClone,
+                SlowVectorInit: SlowVectorInit,
+                AssertionsOnConstants: AssertionsOnConstants,
+                AssertionsOnResultStates: AssertionsOnResultStates,
+                InherentToString: InherentToString,
+                ComparisonChain: ComparisonChain,
+                RedundantClosureCall: RedundantClosureCall,
+                Return: Return,
+                ItemsAfterStatements: ItemsAfterStatements,
+                NeedlessParensOnRangeLiterals: NeedlessParensOnRangeLiterals,
+                CreateDir: CreateDir,
+                DebugAssertWithMutCall: DebugAssertWithMutCall,
+                Exit: Exit,
+                ToDigitIsSome: ToDigitIsSome,
+                FloatingPointArithmetic: FloatingPointArithmetic,
+                AsConversions: AsConversions,
+                LetUnderscore: LetUnderscore,
+                UnnamedAddress: UnnamedAddress,
+                OptionIfLetElse: OptionIfLetElse,
+                FutureNotSend: FutureNotSend,
+                IfLetMutex: IfLetMutex,
+                IfNotElse: IfNotElse,
+                PatternEquality: PatternEquality,
+                ManualAsyncFn: ManualAsyncFn,
+                PanicInResultFn: PanicInResultFn,
+                PatternTypeMismatch: PatternTypeMismatch,
+                UnwrapInResult: UnwrapInResult,
+                SemicolonIfNothingReturned: SemicolonIfNothingReturned,
+                AsyncYieldsAsync: AsyncYieldsAsync,
+                EmptyDrop: EmptyDrop,
+                StrToString: StrToString,
+                StringToString: StringToString,
+                ZeroSizedMapValues: ZeroSizedMapValues,
+                RedundantSlicing: RedundantSlicing,
+                FromStrRadix10: FromStrRadix10,
+                BoolAssertComparison: BoolAssertComparison,
+                StrlenOnCStrings: StrlenOnCStrings,
+                TrailingEmptyArray: TrailingEmptyArray,
+                NeedlessLateInit: NeedlessLateInit,
+                ReturnSelfNotMustUse: ReturnSelfNotMustUse,
+                NumberedFields: NumberedFields,
+                DefaultUnionRepresentation: DefaultUnionRepresentation,
+                UnnecessaryOwnedEmptyStrings: UnnecessaryOwnedEmptyStrings,
+                FormatPushString: FormatPushString,
+                TrimSplitWhitespace: TrimSplitWhitespace,
+                RcCloneInVecInit: RcCloneInVecInit,
+                SwapPtrToRef: SwapPtrToRef,
+                TypeParamMismatch: TypeParamMismatch,
+                ReadZeroByteVec: ReadZeroByteVec,
+                DefaultIterEmpty: DefaultIterEmpty,
+                PartialeqToNone: PartialeqToNone,
+                ManualStringNew: ManualStringNew,
+                UnusedPeekable: UnusedPeekable,
+                BoolToIntWithIf: BoolToIntWithIf,
+                BoxDefault: BoxDefault,
+                ImplicitSaturatingAdd: ImplicitSaturatingAdd,
+                MissingTraitMethods: MissingTraitMethods,
+                FromRawWithVoidPtr: FromRawWithVoidPtr,
+                ConfusingXorAndPow: ConfusingXorAndPow,
+                PermissionsSetReadonlyFalse: PermissionsSetReadonlyFalse,
+                SizeOfRef: SizeOfRef,
+                MultipleUnsafeOpsPerBlock: MultipleUnsafeOpsPerBlock,
+                NoMangleWithRustAbi: NoMangleWithRustAbi,
+                CollectionIsNeverRead: CollectionIsNeverRead,
+                MissingAssertMessage: MissingAssertMessage,
+                NeedlessMaybeSized: NeedlessMaybeSized,
+                RedundantAsyncBlock: RedundantAsyncBlock,
+                UnderscoreTyped: UnderscoreTyped,
+                AllowAttribute: AllowAttribute,
+                UnnecessaryStruct: UnnecessaryStruct,
+                LinesFilterMapOk: LinesFilterMapOk,
+                TestsOutsideTestModule: TestsOutsideTestModule,
+                ManualSliceSizeCalculation: ManualSliceSizeCalculation,
+                ItemsAfterTestModule: ItemsAfterTestModule,
+                DefaultConstructedUnitStructs: DefaultConstructedUnitStructs,
+                MissingFieldsInDebug: MissingFieldsInDebug,
+                EndianBytes: EndianBytes,
+                RedundantTypeAnnotations: RedundantTypeAnnotations,
+                ArcWithNonSendSync: ArcWithNonSendSync,
+                NeedlessIf: NeedlessIf,
+                SingleRangeInVecInit: SingleRangeInVecInit,
+                NonCanonicalImpls: NonCanonicalImpls,
+                ManualRangePatterns: ManualRangePatterns,
+                ManualFloatMethods: ManualFloatMethods,
+                FourForwardSlashes: FourForwardSlashes,
+                ErrorImplError: ErrorImplError,
+                RedundantLocals: RedundantLocals,
+                IgnoredUnitPatterns: IgnoredUnitPatterns,
+                ImpliedBoundsInImpls: ImpliedBoundsInImpls,
+                MissingAssertsForIndexing: MissingAssertsForIndexing,
+                UnnecessaryMapOnConstructor: UnnecessaryMapOnConstructor,
+                IterWithoutIntoIter: IterWithoutIntoIter,
+                IterOverHashType: IterOverHashType,
+                ImplHashWithBorrowStrBytes: ImplHashWithBorrowStrBytes,
+                RepeatVecWithCapacity: RepeatVecWithCapacity,
+                UninhabitedReferences: UninhabitedReferences,
+                IneffectiveOpenOptions: IneffectiveOpenOptions,
+                ToStringTraitImpl: ToStringTraitImpl,
+                ZeroRepeatSideEffects: ZeroRepeatSideEffects,
+                ManualUnwrapOrDefault: ManualUnwrapOrDefault,
+                IntegerDivisionRemainderUsed: IntegerDivisionRemainderUsed,
+                Shadow: Shadow::default(),
+                MainRecursion: MainRecursion::default(),
+                NoEffect: NoEffect::default(),
+                Regex: Regex::default(),
+                NewWithoutDefault: NewWithoutDefault::default(),
+                UselessConversion: UselessConversion::default(),
+                Default: Default::default(),
+                RedundantPubCrate: RedundantPubCrate::default(),
+                MacroUseImports: MacroUseImports::default(),
+                VecInitThenPush: VecInitThenPush::default(),
+                UnusedAsync: UnusedAsync::default(),
+                OnlyUsedInRecursion: OnlyUsedInRecursion::default(),
+                StdReexports: StdReexports::default(),
+                ReserveAfterInitialization: ReserveAfterInitialization::default(),
+            ]
+        ]
+    );
+}
+
 use clippy_config::{get_configuration_metadata, Conf};
 use clippy_utils::macros::FormatArgsStorage;
 use rustc_data_structures::fx::FxHashSet;
@@ -654,6 +1089,8 @@ pub fn register_lints(store: &mut rustc_lint::LintStore, conf: &'static Conf) {
         });
     }
 
+    store.register_late_pass(|_| Box::new(combined::ClippyLateLintPass::new()));
+    store.register_early_pass(|| Box::new(combined::ClippyEarlyLintPass::new()));
     store.register_late_pass(move |_| {
         Box::new(operators::arithmetic_side_effects::ArithmeticSideEffects::new(
             arithmetic_side_effects_allowed
@@ -675,7 +1112,6 @@ pub fn register_lints(store: &mut rustc_lint::LintStore, conf: &'static Conf) {
             await_holding_invalid_types.clone(),
         ))
     });
-    store.register_late_pass(|_| Box::new(serde_api::SerdeApi));
     store.register_late_pass(move |_| {
         Box::new(types::Types::new(
             vec_box_size_threshold,
@@ -683,31 +1119,7 @@ pub fn register_lints(store: &mut rustc_lint::LintStore, conf: &'static Conf) {
             avoid_breaking_exported_api,
         ))
     });
-    store.register_late_pass(|_| Box::new(booleans::NonminimalBool));
-    store.register_late_pass(|_| Box::new(enum_clike::UnportableVariant));
-    store.register_late_pass(|_| Box::new(float_literal::FloatLiteral));
-    store.register_late_pass(|_| Box::new(ptr::Ptr));
-    store.register_late_pass(|_| Box::new(needless_bool::NeedlessBool));
-    store.register_late_pass(|_| Box::new(needless_bool::BoolComparison));
-    store.register_late_pass(|_| Box::new(needless_for_each::NeedlessForEach));
-    store.register_late_pass(|_| Box::new(misc::LintPass));
-    store.register_late_pass(|_| Box::new(eta_reduction::EtaReduction));
-    store.register_late_pass(|_| Box::new(mut_mut::MutMut));
-    store.register_late_pass(|_| Box::new(mut_reference::UnnecessaryMutPassed));
     store.register_late_pass(|_| Box::<significant_drop_tightening::SignificantDropTightening<'_>>::default());
-    store.register_late_pass(|_| Box::new(len_zero::LenZero));
-    store.register_late_pass(|_| Box::new(attrs::Attributes));
-    store.register_late_pass(|_| Box::new(blocks_in_conditions::BlocksInConditions));
-    store.register_late_pass(|_| Box::new(unicode::Unicode));
-    store.register_late_pass(|_| Box::new(uninit_vec::UninitVec));
-    store.register_late_pass(|_| Box::new(unit_return_expecting_ord::UnitReturnExpectingOrd));
-    store.register_late_pass(|_| Box::new(strings::StringAdd));
-    store.register_late_pass(|_| Box::new(implicit_return::ImplicitReturn));
-    store.register_late_pass(|_| Box::new(implicit_saturating_sub::ImplicitSaturatingSub));
-    store.register_late_pass(|_| Box::new(default_numeric_fallback::DefaultNumericFallback));
-    store.register_late_pass(|_| Box::new(inconsistent_struct_constructor::InconsistentStructConstructor));
-    store.register_late_pass(|_| Box::new(non_octal_unix_permissions::NonOctalUnixPermissions));
-    store.register_early_pass(|| Box::new(unnecessary_self_imports::UnnecessarySelfImports));
     store.register_late_pass(move |_| Box::new(approx_const::ApproxConstant::new(msrv())));
     let format_args = format_args_storage.clone();
     store.register_late_pass(move |_| {
@@ -743,20 +1155,7 @@ pub fn register_lints(store: &mut rustc_lint::LintStore, conf: &'static Conf) {
             msrv(),
         ))
     });
-    store.register_late_pass(|_| Box::<shadow::Shadow>::default());
-    store.register_late_pass(|_| Box::new(unit_types::UnitTypes));
     store.register_late_pass(move |_| Box::new(loops::Loops::new(msrv(), enforce_iter_loop_reborrow)));
-    store.register_late_pass(|_| Box::<main_recursion::MainRecursion>::default());
-    store.register_late_pass(|_| Box::new(lifetimes::Lifetimes));
-    store.register_late_pass(|_| Box::new(entry::HashMapPass));
-    store.register_late_pass(|_| Box::new(minmax::MinMaxPass));
-    store.register_late_pass(|_| Box::new(zero_div_zero::ZeroDiv));
-    store.register_late_pass(|_| Box::new(mutex_atomic::Mutex));
-    store.register_late_pass(|_| Box::new(needless_update::NeedlessUpdate));
-    store.register_late_pass(|_| Box::new(needless_borrowed_ref::NeedlessBorrowedRef));
-    store.register_late_pass(|_| Box::new(borrow_deref_ref::BorrowDerefRef));
-    store.register_late_pass(|_| Box::<no_effect::NoEffect>::default());
-    store.register_late_pass(|_| Box::new(temporary_assignment::TemporaryAssignment));
     store.register_late_pass(move |_| Box::new(transmute::Transmute::new(msrv())));
     store.register_late_pass(move |_| {
         Box::new(cognitive_complexity::CognitiveComplexity::new(
@@ -773,20 +1172,10 @@ pub fn register_lints(store: &mut rustc_lint::LintStore, conf: &'static Conf) {
         })
     });
     store.register_late_pass(move |_| Box::new(panic_unimplemented::PanicUnimplemented { allow_panic_in_tests }));
-    store.register_late_pass(|_| Box::new(strings::StringLitAsBytes));
-    store.register_late_pass(|_| Box::new(derive::Derive));
     store.register_late_pass(move |_| Box::new(derivable_impls::DerivableImpls::new(msrv())));
-    store.register_late_pass(|_| Box::new(drop_forget_ref::DropForgetRef));
-    store.register_late_pass(|_| Box::new(empty_enum::EmptyEnum));
-    store.register_late_pass(|_| Box::new(invalid_upcast_comparisons::InvalidUpcastComparisons));
-    store.register_late_pass(|_| Box::<regex::Regex>::default());
     store.register_late_pass(move |_| Box::new(copies::CopyAndPaste::new(ignore_interior_mutability.clone())));
-    store.register_late_pass(|_| Box::new(copy_iterator::CopyIterator));
     let format_args = format_args_storage.clone();
     store.register_late_pass(move |_| Box::new(format::UselessFormat::new(format_args.clone())));
-    store.register_late_pass(|_| Box::new(swap::Swap));
-    store.register_late_pass(|_| Box::new(overflow_check_conditional::OverflowCheckConditional));
-    store.register_late_pass(|_| Box::<new_without_default::NewWithoutDefault>::default());
     store.register_late_pass(move |_| Box::new(disallowed_names::DisallowedNames::new(disallowed_names)));
     store.register_late_pass(move |_| {
         Box::new(functions::Functions::new(
@@ -798,19 +1187,11 @@ pub fn register_lints(store: &mut rustc_lint::LintStore, conf: &'static Conf) {
         ))
     });
     store.register_late_pass(move |_| Box::new(doc::Documentation::new(doc_valid_idents, check_private_items)));
-    store.register_late_pass(|_| Box::new(neg_multiply::NegMultiply));
-    store.register_late_pass(|_| Box::new(let_if_seq::LetIfSeq));
-    store.register_late_pass(|_| Box::new(mixed_read_write_in_expression::EvalOrderDependence));
     store.register_late_pass(move |_| Box::new(missing_doc::MissingDoc::new(missing_docs_in_crate_items)));
-    store.register_late_pass(|_| Box::new(missing_inline::MissingInline));
     store.register_late_pass(move |_| Box::new(exhaustive_items::ExhaustiveItems));
-    store.register_late_pass(|_| Box::new(match_result_ok::MatchResultOk));
-    store.register_late_pass(|_| Box::new(partialeq_ne_impl::PartialEqNeImpl));
-    store.register_late_pass(|_| Box::new(unused_io_amount::UnusedIoAmount));
     store.register_late_pass(move |_| Box::new(large_enum_variant::LargeEnumVariant::new(enum_variant_size_threshold)));
     let format_args = format_args_storage.clone();
     store.register_late_pass(move |_| Box::new(explicit_write::ExplicitWrite::new(format_args.clone())));
-    store.register_late_pass(|_| Box::new(needless_pass_by_value::NeedlessPassByValue));
     store.register_late_pass(move |tcx| {
         Box::new(pass_by_ref_or_value::PassByRefOrValue::new(
             trivial_copy_size_limit,
@@ -819,56 +1200,18 @@ pub fn register_lints(store: &mut rustc_lint::LintStore, conf: &'static Conf) {
             tcx.sess.target.pointer_width,
         ))
     });
-    store.register_late_pass(|_| Box::new(ref_option_ref::RefOptionRef));
-    store.register_late_pass(|_| Box::new(infinite_iter::InfiniteIter));
-    store.register_late_pass(|_| Box::new(inline_fn_without_body::InlineFnWithoutBody));
-    store.register_late_pass(|_| Box::<useless_conversion::UselessConversion>::default());
-    store.register_late_pass(|_| Box::new(implicit_hasher::ImplicitHasher));
-    store.register_late_pass(|_| Box::new(fallible_impl_from::FallibleImplFrom));
     store.register_late_pass(move |_| Box::new(question_mark::QuestionMark::new(msrv(), matches_for_let_else)));
-    store.register_late_pass(|_| Box::new(question_mark_used::QuestionMarkUsed));
-    store.register_early_pass(|| Box::new(suspicious_operation_groupings::SuspiciousOperationGroupings));
-    store.register_late_pass(|_| Box::new(suspicious_trait_impl::SuspiciousImpl));
-    store.register_late_pass(|_| Box::new(map_unit_fn::MapUnit));
-    store.register_late_pass(|_| Box::new(inherent_impl::MultipleInherentImpl));
-    store.register_late_pass(|_| Box::new(neg_cmp_op_on_partial_ord::NoNegCompOpForPartialOrd));
-    store.register_late_pass(|_| Box::new(unwrap::Unwrap));
     store.register_late_pass(move |_| {
         Box::new(indexing_slicing::IndexingSlicing::new(
             suppress_restriction_lint_in_const,
         ))
     });
     store.register_late_pass(move |_| Box::new(non_copy_const::NonCopyConst::new(ignore_interior_mutability.clone())));
-    store.register_late_pass(|_| Box::new(ptr_offset_with_cast::PtrOffsetWithCast));
-    store.register_late_pass(|_| Box::new(redundant_clone::RedundantClone));
-    store.register_late_pass(|_| Box::new(slow_vector_initialization::SlowVectorInit));
     store.register_late_pass(move |_| Box::new(unnecessary_wraps::UnnecessaryWraps::new(avoid_breaking_exported_api)));
-    store.register_late_pass(|_| Box::new(assertions_on_constants::AssertionsOnConstants));
-    store.register_late_pass(|_| Box::new(assertions_on_result_states::AssertionsOnResultStates));
-    store.register_late_pass(|_| Box::new(inherent_to_string::InherentToString));
     store.register_late_pass(move |_| Box::new(trait_bounds::TraitBounds::new(max_trait_bounds, msrv())));
-    store.register_late_pass(|_| Box::new(comparison_chain::ComparisonChain));
     store.register_late_pass(move |_| Box::new(mut_key::MutableKeyType::new(ignore_interior_mutability.clone())));
-    store.register_early_pass(|| Box::new(reference::DerefAddrOf));
-    store.register_early_pass(|| Box::new(double_parens::DoubleParens));
     let format_args = format_args_storage.clone();
     store.register_late_pass(move |_| Box::new(format_impl::FormatImpl::new(format_args.clone())));
-    store.register_early_pass(|| Box::new(unsafe_removed_from_name::UnsafeNameRemoval));
-    store.register_early_pass(|| Box::new(else_if_without_else::ElseIfWithoutElse));
-    store.register_early_pass(|| Box::new(int_plus_one::IntPlusOne));
-    store.register_early_pass(|| Box::new(formatting::Formatting));
-    store.register_early_pass(|| Box::new(misc_early::MiscEarlyLints));
-    store.register_late_pass(|_| Box::new(redundant_closure_call::RedundantClosureCall));
-    store.register_early_pass(|| Box::new(unused_unit::UnusedUnit));
-    store.register_late_pass(|_| Box::new(returns::Return));
-    store.register_early_pass(|| Box::new(collapsible_if::CollapsibleIf));
-    store.register_late_pass(|_| Box::new(items_after_statements::ItemsAfterStatements));
-    store.register_early_pass(|| Box::new(precedence::Precedence));
-    store.register_late_pass(|_| Box::new(needless_parens_on_range_literals::NeedlessParensOnRangeLiterals));
-    store.register_early_pass(|| Box::new(needless_continue::NeedlessContinue));
-    store.register_early_pass(|| Box::new(redundant_else::RedundantElse));
-    store.register_late_pass(|_| Box::new(create_dir::CreateDir));
-    store.register_early_pass(|| Box::new(needless_arbitrary_self_type::NeedlessArbitrarySelfType));
     store.register_early_pass(move || {
         Box::new(literal_representation::LiteralDigitGrouping::new(
             unreadable_literal_lint_fractions,
@@ -888,74 +1231,39 @@ pub fn register_lints(store: &mut rustc_lint::LintStore, conf: &'static Conf) {
             allowed_prefixes,
         ))
     });
-    store.register_early_pass(|| Box::new(tabs_in_doc_comments::TabsInDocComments));
     store.register_late_pass(move |_| {
         Box::new(upper_case_acronyms::UpperCaseAcronyms::new(
             avoid_breaking_exported_api,
             upper_case_acronyms_aggressive,
         ))
     });
-    store.register_late_pass(|_| Box::<default::Default>::default());
     store.register_late_pass(move |_| Box::new(unused_self::UnusedSelf::new(avoid_breaking_exported_api)));
-    store.register_late_pass(|_| Box::new(mutable_debug_assertion::DebugAssertWithMutCall));
-    store.register_late_pass(|_| Box::new(exit::Exit));
-    store.register_late_pass(|_| Box::new(to_digit_is_some::ToDigitIsSome));
     store.register_late_pass(move |_| Box::new(large_stack_arrays::LargeStackArrays::new(array_size_threshold.into())));
     store.register_late_pass(move |_| Box::new(large_const_arrays::LargeConstArrays::new(array_size_threshold.into())));
-    store.register_late_pass(|_| Box::new(floating_point_arithmetic::FloatingPointArithmetic));
-    store.register_late_pass(|_| Box::new(as_conversions::AsConversions));
-    store.register_late_pass(|_| Box::new(let_underscore::LetUnderscore));
-    store.register_early_pass(|| Box::<single_component_path_imports::SingleComponentPathImports>::default());
     store.register_late_pass(move |_| {
         Box::new(excessive_bools::ExcessiveBools::new(
             max_struct_bools,
             max_fn_params_bools,
         ))
     });
-    store.register_early_pass(|| Box::new(option_env_unwrap::OptionEnvUnwrap));
     store.register_late_pass(move |_| {
         Box::new(wildcard_imports::WildcardImports::new(
             warn_on_all_wildcard_imports,
             allowed_wildcard_imports.clone(),
         ))
     });
-    store.register_late_pass(|_| Box::<redundant_pub_crate::RedundantPubCrate>::default());
-    store.register_late_pass(|_| Box::new(unnamed_address::UnnamedAddress));
     store.register_late_pass(|_| Box::<dereference::Dereferencing<'_>>::default());
-    store.register_late_pass(|_| Box::new(option_if_let_else::OptionIfLetElse));
-    store.register_late_pass(|_| Box::new(future_not_send::FutureNotSend));
     store.register_late_pass(move |_| Box::new(large_futures::LargeFuture::new(future_size_threshold)));
-    store.register_late_pass(|_| Box::new(if_let_mutex::IfLetMutex));
-    store.register_late_pass(|_| Box::new(if_not_else::IfNotElse));
-    store.register_late_pass(|_| Box::new(equatable_if_let::PatternEquality));
-    store.register_late_pass(|_| Box::new(manual_async_fn::ManualAsyncFn));
-    store.register_late_pass(|_| Box::new(panic_in_result_fn::PanicInResultFn));
     store.register_early_pass(move || {
         Box::new(non_expressive_names::NonExpressiveNames {
             single_char_binding_names_threshold,
         })
     });
     store.register_early_pass(move || Box::new(nonstandard_macro_braces::MacroBraces::new(standard_macro_braces)));
-    store.register_late_pass(|_| Box::<macro_use::MacroUseImports>::default());
-    store.register_late_pass(|_| Box::new(pattern_type_mismatch::PatternTypeMismatch));
-    store.register_late_pass(|_| Box::new(unwrap_in_result::UnwrapInResult));
-    store.register_late_pass(|_| Box::new(semicolon_if_nothing_returned::SemicolonIfNothingReturned));
-    store.register_late_pass(|_| Box::new(async_yields_async::AsyncYieldsAsync));
     store.register_late_pass(move |_| Box::new(disallowed_macros::DisallowedMacros::new(disallowed_macros.clone())));
     store.register_late_pass(move |_| Box::new(disallowed_methods::DisallowedMethods::new(disallowed_methods.clone())));
-    store.register_early_pass(|| Box::new(asm_syntax::InlineAsmX86AttSyntax));
-    store.register_early_pass(|| Box::new(asm_syntax::InlineAsmX86IntelSyntax));
-    store.register_late_pass(|_| Box::new(empty_drop::EmptyDrop));
-    store.register_late_pass(|_| Box::new(strings::StrToString));
-    store.register_late_pass(|_| Box::new(strings::StringToString));
-    store.register_late_pass(|_| Box::new(zero_sized_map_values::ZeroSizedMapValues));
-    store.register_late_pass(|_| Box::<vec_init_then_push::VecInitThenPush>::default());
-    store.register_late_pass(|_| Box::new(redundant_slicing::RedundantSlicing));
-    store.register_late_pass(|_| Box::new(from_str_radix_10::FromStrRadix10));
     store.register_late_pass(move |_| Box::new(if_then_some_else_none::IfThenSomeElseNone::new(msrv())));
-    store.register_late_pass(|_| Box::new(bool_assert_comparison::BoolAssertComparison));
     store.register_early_pass(move || Box::new(module_style::ModStyle));
-    store.register_late_pass(|_| Box::<unused_async::UnusedAsync>::default());
     store.register_late_pass(move |_| Box::new(disallowed_types::DisallowedTypes::new(disallowed_types.clone())));
     store.register_late_pass(move |_| {
         Box::new(missing_enforced_import_rename::ImportRename::new(
@@ -963,7 +1271,6 @@ pub fn register_lints(store: &mut rustc_lint::LintStore, conf: &'static Conf) {
         ))
     });
     store.register_early_pass(move || Box::new(disallowed_script_idents::DisallowedScriptIdents::new(allowed_scripts)));
-    store.register_late_pass(|_| Box::new(strlen_on_c_strings::StrlenOnCStrings));
     store.register_late_pass(move |_| Box::new(self_named_constructors::SelfNamedConstructors));
     store.register_late_pass(move |_| Box::new(iter_not_returning_iterator::IterNotReturningIterator));
     store.register_late_pass(move |_| Box::new(manual_assert::ManualAssert));
@@ -986,15 +1293,7 @@ pub fn register_lints(store: &mut rustc_lint::LintStore, conf: &'static Conf) {
             allow_mixed_uninlined_format_args,
         ))
     });
-    store.register_late_pass(|_| Box::new(trailing_empty_array::TrailingEmptyArray));
-    store.register_early_pass(|| Box::new(octal_escapes::OctalEscapes));
-    store.register_late_pass(|_| Box::new(needless_late_init::NeedlessLateInit));
-    store.register_late_pass(|_| Box::new(return_self_not_must_use::ReturnSelfNotMustUse));
-    store.register_late_pass(|_| Box::new(init_numbered_fields::NumberedFields));
-    store.register_early_pass(|| Box::new(single_char_lifetime_names::SingleCharLifetimeNames));
     store.register_late_pass(move |_| Box::new(manual_bits::ManualBits::new(msrv())));
-    store.register_late_pass(|_| Box::new(default_union_representation::DefaultUnionRepresentation));
-    store.register_late_pass(|_| Box::<only_used_in_recursion::OnlyUsedInRecursion>::default());
     store.register_late_pass(move |_| Box::new(dbg_macro::DbgMacro::new(allow_dbg_in_tests)));
     let format_args = format_args_storage.clone();
     store.register_late_pass(move |_| Box::new(write::Write::new(format_args.clone(), allow_print_in_tests)));
@@ -1004,21 +1303,8 @@ pub fn register_lints(store: &mut rustc_lint::LintStore, conf: &'static Conf) {
             allowed_duplicate_crates: allowed_duplicate_crates.clone(),
         })
     });
-    store.register_early_pass(|| Box::new(crate_in_macro_def::CrateInMacroDef));
-    store.register_early_pass(|| Box::new(empty_with_brackets::EmptyWithBrackets));
-    store.register_late_pass(|_| Box::new(unnecessary_owned_empty_strings::UnnecessaryOwnedEmptyStrings));
-    store.register_early_pass(|| Box::new(pub_use::PubUse));
-    store.register_late_pass(|_| Box::new(format_push_string::FormatPushString));
     store.register_late_pass(move |_| Box::new(large_include_file::LargeIncludeFile::new(max_include_file_size)));
-    store.register_late_pass(|_| Box::new(strings::TrimSplitWhitespace));
-    store.register_late_pass(|_| Box::new(rc_clone_in_vec_init::RcCloneInVecInit));
-    store.register_early_pass(|| Box::<duplicate_mod::DuplicateMod>::default());
-    store.register_early_pass(|| Box::new(unused_rounding::UnusedRounding));
     store.register_early_pass(move || Box::new(almost_complete_range::AlmostCompleteRange::new(msrv())));
-    store.register_late_pass(|_| Box::new(swap_ptr_to_ref::SwapPtrToRef));
-    store.register_late_pass(|_| Box::new(mismatching_type_param_order::TypeParamMismatch));
-    store.register_late_pass(|_| Box::new(read_zero_byte_vec::ReadZeroByteVec));
-    store.register_late_pass(|_| Box::new(default_instead_of_iter_empty::DefaultIterEmpty));
     store.register_late_pass(move |_| Box::new(manual_rem_euclid::ManualRemEuclid::new(msrv())));
     store.register_late_pass(move |_| Box::new(manual_retain::ManualRetain::new(msrv())));
     store.register_late_pass(move |_| {
@@ -1027,20 +1313,8 @@ pub fn register_lints(store: &mut rustc_lint::LintStore, conf: &'static Conf) {
             allow_comparison_to_zero,
         ))
     });
-    store.register_late_pass(|_| Box::<std_instead_of_core::StdReexports>::default());
     store.register_late_pass(move |_| Box::new(instant_subtraction::InstantSubtraction::new(msrv())));
-    store.register_late_pass(|_| Box::new(partialeq_to_none::PartialeqToNone));
     store.register_late_pass(move |_| Box::new(manual_clamp::ManualClamp::new(msrv())));
-    store.register_late_pass(|_| Box::new(manual_string_new::ManualStringNew));
-    store.register_late_pass(|_| Box::new(unused_peekable::UnusedPeekable));
-    store.register_early_pass(|| Box::new(multi_assignments::MultiAssignments));
-    store.register_late_pass(|_| Box::new(bool_to_int_with_if::BoolToIntWithIf));
-    store.register_late_pass(|_| Box::new(box_default::BoxDefault));
-    store.register_late_pass(|_| Box::new(implicit_saturating_add::ImplicitSaturatingAdd));
-    store.register_early_pass(|| Box::new(partial_pub_fields::PartialPubFields));
-    store.register_late_pass(|_| Box::new(missing_trait_methods::MissingTraitMethods));
-    store.register_late_pass(|_| Box::new(from_raw_with_void_ptr::FromRawWithVoidPtr));
-    store.register_late_pass(|_| Box::new(suspicious_xor_used_as_pow::ConfusingXorAndPow));
     store.register_late_pass(move |_| Box::new(manual_is_ascii_check::ManualIsAsciiCheck::new(msrv())));
     store.register_late_pass(move |_| {
         Box::new(semicolon_block::SemicolonBlock::new(
@@ -1048,47 +1322,24 @@ pub fn register_lints(store: &mut rustc_lint::LintStore, conf: &'static Conf) {
             semicolon_outside_block_ignore_multiline,
         ))
     });
-    store.register_late_pass(|_| Box::new(permissions_set_readonly_false::PermissionsSetReadonlyFalse));
-    store.register_late_pass(|_| Box::new(size_of_ref::SizeOfRef));
-    store.register_late_pass(|_| Box::new(multiple_unsafe_ops_per_block::MultipleUnsafeOpsPerBlock));
     store.register_late_pass(move |_| {
         Box::new(extra_unused_type_parameters::ExtraUnusedTypeParameters::new(
             avoid_breaking_exported_api,
         ))
     });
-    store.register_late_pass(|_| Box::new(no_mangle_with_rust_abi::NoMangleWithRustAbi));
-    store.register_late_pass(|_| Box::new(collection_is_never_read::CollectionIsNeverRead));
-    store.register_late_pass(|_| Box::new(missing_assert_message::MissingAssertMessage));
-    store.register_late_pass(|_| Box::new(needless_maybe_sized::NeedlessMaybeSized));
-    store.register_late_pass(|_| Box::new(redundant_async_block::RedundantAsyncBlock));
-    store.register_late_pass(|_| Box::new(let_with_type_underscore::UnderscoreTyped));
-    store.register_late_pass(|_| Box::new(allow_attributes::AllowAttribute));
     store.register_late_pass(move |_| Box::new(manual_main_separator_str::ManualMainSeparatorStr::new(msrv())));
-    store.register_late_pass(|_| Box::new(unnecessary_struct_initialization::UnnecessaryStruct));
     store.register_late_pass(move |_| {
         Box::new(unnecessary_box_returns::UnnecessaryBoxReturns::new(
             avoid_breaking_exported_api,
             unnecessary_box_size,
         ))
     });
-    store.register_late_pass(|_| Box::new(lines_filter_map_ok::LinesFilterMapOk));
-    store.register_late_pass(|_| Box::new(tests_outside_test_module::TestsOutsideTestModule));
-    store.register_late_pass(|_| Box::new(manual_slice_size_calculation::ManualSliceSizeCalculation));
     store.register_early_pass(move || {
         Box::new(excessive_nesting::ExcessiveNesting {
             excessive_nesting_threshold,
             nodes: rustc_ast::node_id::NodeSet::new(),
         })
     });
-    store.register_late_pass(|_| Box::new(items_after_test_module::ItemsAfterTestModule));
-    store.register_early_pass(|| Box::new(ref_patterns::RefPatterns));
-    store.register_late_pass(|_| Box::new(default_constructed_unit_structs::DefaultConstructedUnitStructs));
-    store.register_early_pass(|| Box::new(needless_else::NeedlessElse));
-    store.register_late_pass(|_| Box::new(missing_fields_in_debug::MissingFieldsInDebug));
-    store.register_late_pass(|_| Box::new(endian_bytes::EndianBytes));
-    store.register_late_pass(|_| Box::new(redundant_type_annotations::RedundantTypeAnnotations));
-    store.register_late_pass(|_| Box::new(arc_with_non_send_sync::ArcWithNonSendSync));
-    store.register_late_pass(|_| Box::new(needless_if::NeedlessIf));
     store.register_late_pass(move |_| {
         Box::new(min_ident_chars::MinIdentChars {
             allowed_idents_below_min_chars: allowed_idents_below_min_chars.clone(),
@@ -1096,13 +1347,11 @@ pub fn register_lints(store: &mut rustc_lint::LintStore, conf: &'static Conf) {
         })
     });
     store.register_late_pass(move |_| Box::new(large_stack_frames::LargeStackFrames::new(stack_size_threshold)));
-    store.register_late_pass(|_| Box::new(single_range_in_vec_init::SingleRangeInVecInit));
     store.register_late_pass(move |_| {
         Box::new(needless_pass_by_ref_mut::NeedlessPassByRefMut::new(
             avoid_breaking_exported_api,
         ))
     });
-    store.register_late_pass(|_| Box::new(non_canonical_impls::NonCanonicalImpls));
     store.register_late_pass(move |_| {
         Box::new(single_call_fn::SingleCallFn {
             avoid_breaking_exported_api,
@@ -1115,36 +1364,19 @@ pub fn register_lints(store: &mut rustc_lint::LintStore, conf: &'static Conf) {
         })
     });
     store.register_late_pass(move |_| Box::new(legacy_numeric_constants::LegacyNumericConstants::new(msrv())));
-    store.register_late_pass(|_| Box::new(manual_range_patterns::ManualRangePatterns));
-    store.register_early_pass(|| Box::new(visibility::Visibility));
     store.register_late_pass(move |_| Box::new(tuple_array_conversions::TupleArrayConversions { msrv: msrv() }));
-    store.register_late_pass(|_| Box::new(manual_float_methods::ManualFloatMethods));
-    store.register_late_pass(|_| Box::new(four_forward_slashes::FourForwardSlashes));
-    store.register_late_pass(|_| Box::new(error_impl_error::ErrorImplError));
     store.register_late_pass(move |_| {
         Box::new(absolute_paths::AbsolutePaths {
             absolute_paths_max_segments,
             absolute_paths_allowed_crates: absolute_paths_allowed_crates.clone(),
         })
     });
-    store.register_late_pass(|_| Box::new(redundant_locals::RedundantLocals));
-    store.register_late_pass(|_| Box::new(ignored_unit_patterns::IgnoredUnitPatterns));
-    store.register_late_pass(|_| Box::<reserve_after_initialization::ReserveAfterInitialization>::default());
-    store.register_late_pass(|_| Box::new(implied_bounds_in_impls::ImpliedBoundsInImpls));
-    store.register_late_pass(|_| Box::new(missing_asserts_for_indexing::MissingAssertsForIndexing));
-    store.register_late_pass(|_| Box::new(unnecessary_map_on_constructor::UnnecessaryMapOnConstructor));
     store.register_late_pass(move |_| {
         Box::new(needless_borrows_for_generic_args::NeedlessBorrowsForGenericArgs::new(
             msrv(),
         ))
     });
     store.register_late_pass(move |_| Box::new(manual_hash_one::ManualHashOne::new(msrv())));
-    store.register_late_pass(|_| Box::new(iter_without_into_iter::IterWithoutIntoIter));
-    store.register_late_pass(|_| Box::new(iter_over_hash_type::IterOverHashType));
-    store.register_late_pass(|_| Box::new(impl_hash_with_borrow_str_and_bytes::ImplHashWithBorrowStrBytes));
-    store.register_late_pass(|_| Box::new(repeat_vec_with_capacity::RepeatVecWithCapacity));
-    store.register_late_pass(|_| Box::new(uninhabited_references::UninhabitedReferences));
-    store.register_late_pass(|_| Box::new(ineffective_open_options::IneffectiveOpenOptions));
     store.register_late_pass(|_| Box::<unconditional_recursion::UnconditionalRecursion>::default());
     store.register_late_pass(move |_| {
         Box::new(pub_underscore_fields::PubUnderscoreFields {
@@ -1155,12 +1387,7 @@ pub fn register_lints(store: &mut rustc_lint::LintStore, conf: &'static Conf) {
         Box::new(thread_local_initializer_can_be_made_const::ThreadLocalInitializerCanBeMadeConst::new(msrv()))
     });
     store.register_late_pass(move |_| Box::new(incompatible_msrv::IncompatibleMsrv::new(msrv())));
-    store.register_late_pass(|_| Box::new(to_string_trait_impl::ToStringTraitImpl));
-    store.register_early_pass(|| Box::new(multiple_bound_locations::MultipleBoundLocations));
     store.register_late_pass(move |_| Box::new(assigning_clones::AssigningClones::new(msrv())));
-    store.register_late_pass(|_| Box::new(zero_repeat_side_effects::ZeroRepeatSideEffects));
-    store.register_late_pass(|_| Box::new(manual_unwrap_or_default::ManualUnwrapOrDefault));
-    store.register_late_pass(|_| Box::new(integer_division_remainder_used::IntegerDivisionRemainderUsed));
     store.register_late_pass(move |_| {
         Box::new(macro_metavars_in_unsafe::ExprMetavarsInUnsafe {
             warn_unsafe_macro_metavars_in_private_macros,
