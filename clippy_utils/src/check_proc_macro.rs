@@ -18,8 +18,8 @@ use rustc_ast::AttrStyle;
 use rustc_hir::intravisit::FnKind;
 use rustc_hir::{
     Block, BlockCheckMode, Body, Closure, Destination, Expr, ExprKind, FieldDef, FnHeader, FnRetTy, HirId, Impl,
-    ImplItem, ImplItemKind, IsAuto, Item, ItemKind, LoopSource, MatchSource, MutTy, Node, QPath, Safety, TraitItem,
-    TraitItemKind, Ty, TyKind, UnOp, UnsafeSource, Variant, VariantData, YieldSource,
+    ImplItem, ImplItemKind, IsAuto, Item, ItemKind, LoopSource, MatchSource, MutTy, Node, Path, QPath, Safety,
+    TraitItem, TraitItemKind, Ty, TyKind, UnOp, UnsafeSource, Variant, VariantData, YieldSource,
 };
 use rustc_lint::{LateContext, LintContext};
 use rustc_middle::ty::TyCtxt;
@@ -414,6 +414,34 @@ impl<'cx> WithSearchPat<'cx> for Ident {
 
     fn search_pat(&self, _cx: &Self::Context) -> (Pat, Pat) {
         (Pat::Sym(self.name), Pat::Sym(self.name))
+    }
+
+    fn span(&self) -> Span {
+        self.span
+    }
+}
+
+impl<'cx> WithSearchPat<'cx> for Path<'cx> {
+    type Context = LateContext<'cx>;
+
+    fn search_pat(&self, _cx: &Self::Context) -> (Pat, Pat) {
+        let (head, tail) = match self.segments {
+            [head, .., tail] => (head, tail),
+            [p] => (p, p),
+            [] => return (Pat::Str(""), Pat::Str("")),
+        };
+        (
+            if head.ident.name == kw::PathRoot {
+                Pat::Str("::")
+            } else {
+                Pat::Sym(head.ident.name)
+            },
+            if tail.args.is_some() {
+                Pat::Str(">")
+            } else {
+                Pat::Sym(tail.ident.name)
+            },
+        )
     }
 
     fn span(&self) -> Span {

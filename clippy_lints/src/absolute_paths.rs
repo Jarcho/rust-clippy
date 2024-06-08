@@ -1,5 +1,5 @@
 use clippy_utils::diagnostics::span_lint;
-use clippy_utils::source::snippet_opt;
+use clippy_utils::is_from_proc_macro;
 use rustc_data_structures::fx::FxHashSet;
 use rustc_hir::def::{DefKind, Res};
 use rustc_hir::def_id::{DefId, CRATE_DEF_INDEX};
@@ -50,51 +50,36 @@ pub struct AbsolutePaths {
     pub absolute_paths_allowed_crates: FxHashSet<String>,
 }
 
-impl LateLintPass<'_> for AbsolutePaths {
+impl<'tcx> LateLintPass<'tcx> for AbsolutePaths {
     // We should only lint `QPath::Resolved`s, but since `Path` is only used in `Resolved` and `UsePath`
     // we don't need to use a visitor or anything as we can just check if the `Node` for `hir_id` isn't
     // a `Use`
     #[expect(clippy::cast_possible_truncation)]
-    fn check_path(&mut self, cx: &LateContext<'_>, path: &Path<'_>, hir_id: HirId) {
-        let Self {
-            absolute_paths_max_segments,
-            absolute_paths_allowed_crates,
-        } = self;
+    fn check_path(&mut self, cx: &LateContext<'tcx>, path: &Path<'tcx>, hir_id: HirId) {
+        let (first, len) = match path.segments {
+            [] | [_] => return,
+            [root, first, ..] if root.ident.name == kw::PathRoot => (first, path.segments.len() - 1),
+            [first, ..] => (first, path.segments.len()),
+        };
 
-        if !path.span.from_expansion()
+        if len > self.absolute_paths_max_segments as usize
+            && !path.span.from_expansion()
             && let node = cx.tcx.hir_node(hir_id)
-            && !matches!(node, Node::Item(item) if matches!(item.kind, ItemKind::Use(_, _)))
-            && let [first, rest @ ..] = path.segments
-            // Handle `::std`
-            && let (segment, len) = if first.ident.name == kw::PathRoot {
-                // Indexing is fine as `PathRoot` must be followed by another segment. `len() - 1`
-                // is fine here for the same reason
-                (&rest[0], path.segments.len() - 1)
-            } else {
-                (first, path.segments.len())
-            }
-            && len > *absolute_paths_max_segments as usize
-            && let Some(segment_snippet) = snippet_opt(cx, segment.ident.span)
-            && segment_snippet == segment.ident.as_str()
+            && !matches!(node, Node::Item(item) if matches!(item.kind, ItemKind::Use(..)))
+            && let is_abs_crate = first.ident.name == kw::Crate
+            && let is_abs_external =
+                matches!(first.res, Res::Def(DefKind::Mod, DefId { index, .. }) if index == CRATE_DEF_INDEX)
+            && (is_abs_crate || is_abs_external)
+            && (!is_abs_crate || !self.absolute_paths_allowed_crates.contains("crate"))
+            && (!is_abs_external || !self.absolute_paths_allowed_crates.contains(first.ident.name.as_str()))
+            && !is_from_proc_macro(cx, path)
         {
-            let is_abs_external =
-                matches!(segment.res, Res::Def(DefKind::Mod, DefId { index, .. }) if index == CRATE_DEF_INDEX);
-            let is_abs_crate = segment.ident.name == kw::Crate;
-
-            if is_abs_external && absolute_paths_allowed_crates.contains(segment.ident.name.as_str())
-                || is_abs_crate && absolute_paths_allowed_crates.contains("crate")
-            {
-                return;
-            }
-
-            if is_abs_external || is_abs_crate {
-                span_lint(
-                    cx,
-                    ABSOLUTE_PATHS,
-                    path.span,
-                    "consider bringing this path into scope with the `use` keyword",
-                );
-            }
+            span_lint(
+                cx,
+                ABSOLUTE_PATHS,
+                path.span,
+                "consider bringing this path into scope with the `use` keyword",
+            );
         }
     }
 }
