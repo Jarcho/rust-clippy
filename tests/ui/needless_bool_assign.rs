@@ -1,4 +1,4 @@
-#![allow(unused)]
+#![allow(unused, clippy::if_same_then_else)]
 #![warn(clippy::needless_bool_assign)]
 
 fn random() -> bool {

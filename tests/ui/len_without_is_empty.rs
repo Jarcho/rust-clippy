@@ -1,5 +1,5 @@
 #![warn(clippy::len_without_is_empty)]
-#![allow(dead_code, unused)]
+#![allow(dead_code, unused, clippy::result_unit_err)]
 
 pub struct PubOne;
 
@@ -235,7 +235,6 @@ pub struct ResultLen;
 impl ResultLen {
     pub fn len(&self) -> Result<usize, ()> {
         //~^ ERROR: struct `ResultLen` has a public `len` method, but the `is_empty` method ha
-        //~| ERROR: this returns a `Result<_, ()>`
         Ok(0)
     }
 
@@ -248,12 +247,10 @@ impl ResultLen {
 pub struct ResultLen2;
 impl ResultLen2 {
     pub fn len(&self) -> Result<usize, ()> {
-        //~^ ERROR: this returns a `Result<_, ()>`
         Ok(0)
     }
 
     pub fn is_empty(&self) -> Result<bool, ()> {
-        //~^ ERROR: this returns a `Result<_, ()>`
         Ok(true)
     }
 }
@@ -261,7 +258,6 @@ impl ResultLen2 {
 pub struct ResultLen3;
 impl ResultLen3 {
     pub fn len(&self) -> Result<usize, ()> {
-        //~^ ERROR: this returns a `Result<_, ()>`
         Ok(0)
     }
 

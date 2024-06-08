@@ -8,15 +8,19 @@ use rustc_span::edit_distance::edit_distance;
 use rustc_span::{BytePos, Pos, SourceFile, Span, SyntaxContext};
 use serde::de::{IgnoredAny, IntoDeserializer, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
+use std::collections::HashSet;
 use std::fmt::{Debug, Display, Formatter};
-use std::ops::Range;
+use std::hash::{BuildHasher, Hash};
+use std::ops::{Deref, Range};
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::OnceLock;
 use std::{cmp, env, fmt, fs, io};
 
+// These arrays are not inlined into the config macro to allow all code paths to
+// refer to the same array.
 #[rustfmt::skip]
-const DEFAULT_DOC_VALID_IDENTS: &[&str] = &[
+static DEFAULT_DOC_VALID_IDENTS: &[&str] = &[
     "KiB", "MiB", "GiB", "TiB", "PiB", "EiB",
     "DevOps",
     "DirectX",
@@ -39,11 +43,111 @@ const DEFAULT_DOC_VALID_IDENTS: &[&str] = &[
     "MinGW",
     "CamelCase",
 ];
-const DEFAULT_DISALLOWED_NAMES: &[&str] = &["foo", "baz", "quux"];
-const DEFAULT_ALLOWED_IDENTS_BELOW_MIN_CHARS: &[&str] = &["i", "j", "x", "y", "z", "w", "n"];
-const DEFAULT_ALLOWED_PREFIXES: &[&str] = &["to", "as", "into", "from", "try_into", "try_from"];
-const DEFAULT_ALLOWED_TRAITS_WITH_RENAMED_PARAMS: &[&str] =
+static DEFAULT_DISALLOWED_NAMES: &[&str] = &["foo", "baz", "quux"];
+static DEFAULT_ALLOWED_IDENTS_BELOW_MIN_CHARS: &[&str] = &["i", "j", "x", "y", "z", "w", "n"];
+static DEFAULT_ALLOWED_PREFIXES: &[&str] = &["to", "as", "into", "from", "try_into", "try_from"];
+static DEFAULT_ALLOWED_TRAITS_WITH_RENAMED_PARAMS: &[&str] =
     &["core::convert::From", "core::convert::TryFrom", "core::str::FromStr"];
+static DEFAULT_IGNORE_INTERIOR_MUTABILITY: &[&str] = &["bytes::Bytes"];
+static DEFAULT_ALLOWED_SCRIPTS: &[&str] = &["Latin"];
+
+/// A type which can be constructed from a default value.
+trait FromDefault<T: ?Sized> {
+    fn from_default(default: &T) -> Self;
+}
+impl<T: Copy> FromDefault<T> for T {
+    fn from_default(default: &T) -> Self {
+        *default
+    }
+}
+impl FromDefault<str> for String {
+    fn from_default(default: &str) -> String {
+        default.into()
+    }
+}
+impl FromDefault<()> for Msrv {
+    fn from_default(_: &()) -> Self {
+        Msrv::empty()
+    }
+}
+impl<T> FromDefault<()> for Vec<T> {
+    fn from_default(_: &()) -> Self {
+        Vec::new()
+    }
+}
+impl<T, S: Default> FromDefault<()> for HashSet<T, S> {
+    fn from_default(_: &()) -> Self {
+        HashSet::default()
+    }
+}
+impl<T: ?Sized + ToOwned> FromDefault<[&T]> for Vec<T::Owned> {
+    fn from_default(default: &[&T]) -> Self {
+        default.iter().map(|&x| x.to_owned()).collect()
+    }
+}
+impl<T, S> FromDefault<[&T]> for HashSet<T::Owned, S>
+where
+    T: ?Sized + ToOwned<Owned: Eq + Hash>,
+    S: BuildHasher + Default,
+{
+    fn from_default(default: &[&T]) -> Self {
+        default.iter().map(|&x| x.to_owned()).collect()
+    }
+}
+
+/// A type which can be extended with a default value.
+trait ExtendWithDefault<T: ?Sized> {
+    fn extend_with_default(&mut self, _: &T) {}
+}
+impl<T: Copy> ExtendWithDefault<T> for T {}
+impl ExtendWithDefault<()> for Msrv {}
+impl ExtendWithDefault<str> for String {}
+impl<T> ExtendWithDefault<()> for Vec<T> {}
+impl<T, S> ExtendWithDefault<()> for HashSet<T, S> {}
+impl<T, U> ExtendWithDefault<[U]> for Vec<T> {}
+impl<T, S, U> ExtendWithDefault<[U]> for HashSet<T, S> {}
+
+/// A type which will be extended with the default value if it contains the correct marker value.
+#[derive(Clone, Deserialize)]
+#[serde(transparent)]
+pub struct Extendable<T>(T);
+
+impl<T> Deref for Extendable<T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        &self.0
+    }
+}
+impl<T: FromDefault<U>, U: ?Sized> FromDefault<U> for Extendable<T> {
+    fn from_default(default: &U) -> Self {
+        Self(T::from_default(default))
+    }
+}
+impl ExtendWithDefault<()> for Extendable<Vec<String>> {}
+impl<S> ExtendWithDefault<()> for Extendable<HashSet<String, S>> {}
+impl<'a> ExtendWithDefault<[&'a str]> for Extendable<Vec<String>> {
+    fn extend_with_default(&mut self, default: &[&'a str]) {
+        let mut found = false;
+        self.0.retain(|x| {
+            if x == ".." {
+                found = true;
+                false
+            } else {
+                true
+            }
+        });
+        if found {
+            self.0.extend(default.iter().map(|&x| x.to_owned()));
+        }
+    }
+}
+impl<'a, S: BuildHasher> ExtendWithDefault<[&'a str]> for Extendable<HashSet<String, S>> {
+    fn extend_with_default(&mut self, default: &[&'a str]) {
+        if self.0.remove("..") {
+            self.0.extend(default.iter().map(|&x| x.to_owned()));
+        }
+    }
+}
 
 /// Conf with parse errors
 #[derive(Default)]
@@ -127,14 +231,11 @@ macro_rules! define_Conf {
             $($(#[doc = $doc])+ pub $name: $ty,)*
         }
 
-        mod defaults {
-            use super::*;
-            $(pub fn $name() -> $ty { $default })*
-        }
-
         impl Default for Conf {
             fn default() -> Self {
-                Self { $($name: defaults::$name(),)* }
+                Self {
+                    $($name: <$ty as FromDefault<_>>::from_default(&$default),)*
+                }
             }
         }
 
@@ -155,7 +256,7 @@ macro_rules! define_Conf {
             fn visit_map<V>(self, mut map: V) -> Result<Self::Value, V::Error> where V: MapAccess<'de> {
                 let mut errors = Vec::new();
                 let mut warnings = Vec::new();
-                $(let mut $name = None;)*
+                $(let mut $name: Option<$ty> = None;)*
                 // could get `Field` here directly, but get `String` first for diagnostics
                 while let Some(name) = map.next_key::<toml::Spanned<String>>()? {
                     match Field::deserialize(name.get_ref().as_str().into_deserializer()) {
@@ -192,7 +293,15 @@ macro_rules! define_Conf {
                         Ok(Field::third_party) => drop(map.next_value::<IgnoredAny>())
                     }
                 }
-                let conf = Conf { $($name: $name.unwrap_or_else(defaults::$name),)* };
+                let conf = Conf { $(
+                    $name: match $name {
+                        Some(mut x) => {
+                            <$ty as ExtendWithDefault<_>>::extend_with_default(&mut x, &$default);
+                            x
+                        },
+                        None => <$ty as FromDefault<_>>::from_default(&$default),
+                    },
+                )* };
                 Ok(TryConf { conf, errors, warnings })
             }
         }
@@ -205,7 +314,10 @@ macro_rules! define_Conf {
 
                         ClippyConfiguration::new(
                             stringify!($name),
-                            default_text!(defaults::$name() $(, $default_text)?),
+                            default_text!(
+                                <$ty as FromDefault<_>>::from_default(&$default)
+                                $(, $default_text)?
+                            ),
                             concat!($($doc, '\n',)*),
                             deprecation_reason,
                         )
@@ -235,7 +347,7 @@ define_Conf! {
     ///
     /// A type, say `SomeType`, listed in this configuration has the same behavior of
     /// `["SomeType" , "*"], ["*", "SomeType"]` in `arithmetic_side_effects_allowed_binary`.
-    (arithmetic_side_effects_allowed: FxHashSet<String> = <_>::default()),
+    (arithmetic_side_effects_allowed: Vec<String> = ()),
     /// Lint: ARITHMETIC_SIDE_EFFECTS.
     ///
     /// Suppress checking of the passed type pair names in binary operations like addition or
@@ -252,7 +364,7 @@ define_Conf! {
     /// ```toml
     /// arithmetic-side-effects-allowed-binary = [["SomeType" , "f32"], ["AnotherType", "*"]]
     /// ```
-    (arithmetic_side_effects_allowed_binary: Vec<[String; 2]> = <_>::default()),
+    (arithmetic_side_effects_allowed_binary: Vec<[String; 2]> = ()),
     /// Lint: ARITHMETIC_SIDE_EFFECTS.
     ///
     /// Suppress checking of the passed type names in unary operations like "negation" (`-`).
@@ -262,7 +374,7 @@ define_Conf! {
     /// ```toml
     /// arithmetic-side-effects-allowed-unary = ["SomeType", "AnotherType"]
     /// ```
-    (arithmetic_side_effects_allowed_unary: FxHashSet<String> = <_>::default()),
+    (arithmetic_side_effects_allowed_unary: Vec<String> = ()),
     /// Lint: ENUM_VARIANT_NAMES, LARGE_TYPES_PASSED_BY_VALUE, TRIVIALLY_COPY_PASS_BY_REF, UNNECESSARY_WRAPS, UNUSED_SELF, UPPER_CASE_ACRONYMS, WRONG_SELF_CONVENTION, BOX_COLLECTION, REDUNDANT_ALLOCATION, RC_BUFFER, VEC_BOX, OPTION_OPTION, LINKEDLIST, RC_MUTEX, UNNECESSARY_BOX_RETURNS, SINGLE_CALL_FN, NEEDLESS_PASS_BY_REF_MUT.
     ///
     /// Suppress lints whenever the suggested change would cause breakage for other crates.
@@ -271,12 +383,12 @@ define_Conf! {
     ///
     /// The minimum rust version that the project supports. Defaults to the `rust-version` field in `Cargo.toml`
     #[default_text = ""]
-    (msrv: Msrv = Msrv::empty()),
+    (msrv: Msrv = ()),
     /// DEPRECATED LINT: BLACKLISTED_NAME.
     ///
     /// Use the Disallowed Names lint instead
     #[conf_deprecated("Please use `disallowed-names` instead", disallowed_names)]
-    (blacklisted_names: Vec<String> = Vec::new()),
+    (blacklisted_names: Extendable<FxHashSet<String>> = ()),
     /// Lint: COGNITIVE_COMPLEXITY.
     ///
     /// The maximum cognitive complexity a function can have
@@ -295,7 +407,7 @@ define_Conf! {
     /// The list of disallowed names to lint about. NB: `bar` is not here since it has legitimate uses. The value
     /// `".."` can be used as part of the list to indicate that the configured values should be appended to the
     /// default configuration of Clippy. By default, any configuration will replace the default value.
-    (disallowed_names: Vec<String> = DEFAULT_DISALLOWED_NAMES.iter().map(ToString::to_string).collect()),
+    (disallowed_names: Extendable<FxHashSet<String>> = *DEFAULT_DISALLOWED_NAMES),
     /// Lint: SEMICOLON_INSIDE_BLOCK.
     ///
     /// Whether to lint only if it's multiline.
@@ -311,7 +423,7 @@ define_Conf! {
     /// default configuration of Clippy. By default, any configuration will replace the default value. For example:
     /// * `doc-valid-idents = ["ClipPy"]` would replace the default list with `["ClipPy"]`.
     /// * `doc-valid-idents = ["ClipPy", ".."]` would append `ClipPy` to the default list.
-    (doc_valid_idents: Vec<String> = DEFAULT_DOC_VALID_IDENTS.iter().map(ToString::to_string).collect()),
+    (doc_valid_idents: Extendable<FxHashSet<String>> = *DEFAULT_DOC_VALID_IDENTS),
     /// Lint: TOO_MANY_ARGUMENTS.
     ///
     /// The maximum number of argument a function or method can have
@@ -393,15 +505,15 @@ define_Conf! {
     /// Lint: DISALLOWED_MACROS.
     ///
     /// The list of disallowed macros, written as fully qualified paths.
-    (disallowed_macros: Vec<DisallowedPath> = Vec::new()),
+    (disallowed_macros: Vec<DisallowedPath> = ()),
     /// Lint: DISALLOWED_METHODS.
     ///
     /// The list of disallowed methods, written as fully qualified paths.
-    (disallowed_methods: Vec<DisallowedPath> = Vec::new()),
+    (disallowed_methods: Vec<DisallowedPath> = ()),
     /// Lint: DISALLOWED_TYPES.
     ///
     /// The list of disallowed types, written as fully qualified paths.
-    (disallowed_types: Vec<DisallowedPath> = Vec::new()),
+    (disallowed_types: Vec<DisallowedPath> = ()),
     /// Lint: UNREADABLE_LITERAL.
     ///
     /// Should the fraction of a decimal be linted to include separators.
@@ -426,15 +538,15 @@ define_Conf! {
     /// A `MacroMatcher` can be added like so `{ name = "macro_name", brace = "(" }`. If the macro
     /// could be used with a full path two `MacroMatcher`s have to be added one with the full path
     /// `crate_name::macro_name` and one with just the macro name.
-    (standard_macro_braces: Vec<MacroMatcher> = Vec::new()),
+    (standard_macro_braces: Vec<MacroMatcher> = ()),
     /// Lint: MISSING_ENFORCED_IMPORT_RENAMES.
     ///
     /// The list of imports to always rename, a fully qualified path followed by the rename.
-    (enforced_import_renames: Vec<Rename> = Vec::new()),
+    (enforced_import_renames: Vec<Rename> = ()),
     /// Lint: DISALLOWED_SCRIPT_IDENTS.
     ///
     /// The list of unicode scripts allowed to be used in the scope.
-    (allowed_scripts: Vec<String> = vec!["Latin".to_string()]),
+    (allowed_scripts: Vec<String> = *DEFAULT_ALLOWED_SCRIPTS),
     /// Lint: NON_SEND_FIELDS_IN_SEND_TY.
     ///
     /// Whether to apply the raw pointer heuristic to determine if a type is `Send`.
@@ -446,7 +558,7 @@ define_Conf! {
     /// For example, `[_, _, _, e, ..]` is a slice pattern with 4 elements.
     (max_suggested_slice_pattern_length: u64 = 3),
     /// Lint: AWAIT_HOLDING_INVALID_TYPE.
-    (await_holding_invalid_types: Vec<DisallowedPath> = Vec::new()),
+    (await_holding_invalid_types: Vec<DisallowedPath> = ()),
     /// Lint: LARGE_INCLUDE_FILE.
     ///
     /// The maximum size of a file included via `include_bytes!()` or `include_str!()`, in bytes
@@ -482,7 +594,7 @@ define_Conf! {
     /// Lint: MUTABLE_KEY_TYPE, IFS_SAME_COND, BORROW_INTERIOR_MUTABLE_CONST, DECLARE_INTERIOR_MUTABLE_CONST.
     ///
     /// A list of paths to types that should be treated as if they do not contain interior mutability
-    (ignore_interior_mutability: Vec<String> = Vec::from(["bytes::Bytes".into()])),
+    (ignore_interior_mutability: Vec<String> = *DEFAULT_IGNORE_INTERIOR_MUTABILITY),
     /// Lint: UNINLINED_FORMAT_ARGS.
     ///
     /// Whether to allow mixed uninlined format args, e.g. `format!("{} {}", a, foo.bar)`
@@ -517,8 +629,7 @@ define_Conf! {
     /// Allowed names below the minimum allowed characters. The value `".."` can be used as part of
     /// the list to indicate, that the configured values should be appended to the default
     /// configuration of Clippy. By default, any configuration will replace the default value.
-    (allowed_idents_below_min_chars: FxHashSet<String> =
-        DEFAULT_ALLOWED_IDENTS_BELOW_MIN_CHARS.iter().map(ToString::to_string).collect()),
+    (allowed_idents_below_min_chars: Extendable<FxHashSet<String>> = *DEFAULT_ALLOWED_IDENTS_BELOW_MIN_CHARS),
     /// Lint: MIN_IDENT_CHARS.
     ///
     /// Minimum chars an ident can have, anything below or equal to this will be linted.
@@ -543,15 +654,15 @@ define_Conf! {
     /// Lint: ABSOLUTE_PATHS.
     ///
     /// Which crates to allow absolute paths from
-    (absolute_paths_allowed_crates: FxHashSet<String> = FxHashSet::default()),
+    (absolute_paths_allowed_crates: FxHashSet<String> = ()),
     /// Lint: PATH_ENDS_WITH_EXT.
     ///
     /// Additional dotfiles (files or directories starting with a dot) to allow
-    (allowed_dotfiles: FxHashSet<String> = FxHashSet::default()),
+    (allowed_dotfiles: Vec<String> = ()),
     /// Lint: MULTIPLE_CRATE_VERSIONS.
     ///
     /// A list of crate names to allow duplicates of
-    (allowed_duplicate_crates: FxHashSet<String> = FxHashSet::default()),
+    (allowed_duplicate_crates: FxHashSet<String> = ()),
     /// Lint: EXPLICIT_ITER_LOOP.
     ///
     /// Whether to recommend using implicit into iter for reborrowed values.
@@ -600,7 +711,7 @@ define_Conf! {
     /// 1. This configuration has no effects if used with `warn_on_all_wildcard_imports = true`.
     /// 2. Paths with any segment that containing the word 'prelude'
     /// are already allowed by default.
-    (allowed_wildcard_imports: FxHashSet<String> = FxHashSet::default()),
+    (allowed_wildcard_imports: FxHashSet<String> = ()),
     /// Lint: MODULE_NAME_REPETITIONS.
     ///
     /// List of prefixes to allow when determining whether an item's name ends with the module's name.
@@ -620,7 +731,7 @@ define_Conf! {
     ///   `TryInto` will also be included)
     /// - Use `".."` as part of the list to indicate that the configured values should be appended to the
     /// default configuration of Clippy. By default, any configuration will replace the default value
-    (allowed_prefixes: Vec<String> = DEFAULT_ALLOWED_PREFIXES.iter().map(ToString::to_string).collect()),
+    (allowed_prefixes: Extendable<Vec<String>> = *DEFAULT_ALLOWED_PREFIXES),
     /// Lint: RENAMED_FUNCTION_PARAMS.
     ///
     /// List of trait paths to ignore when checking renamed function parameters.
@@ -636,8 +747,7 @@ define_Conf! {
     /// - By default, the following traits are ignored: `From`, `TryFrom`, `FromStr`
     /// - `".."` can be used as part of the list to indicate that the configured values should be appended to the
     /// default configuration of Clippy. By default, any configuration will replace the default value.
-    (allow_renamed_params_for: Vec<String> =
-        DEFAULT_ALLOWED_TRAITS_WITH_RENAMED_PARAMS.iter().map(ToString::to_string).collect()),
+    (allow_renamed_params_for: Extendable<Vec<String>> = *DEFAULT_ALLOWED_TRAITS_WITH_RENAMED_PARAMS),
     /// Lint: MACRO_METAVARS_IN_UNSAFE.
     ///
     /// Whether to also emit warnings for unsafe blocks with metavariable expansions in **private** macros.
@@ -699,30 +809,8 @@ pub fn lookup_conf_file() -> io::Result<(Option<PathBuf>, Vec<String>)> {
 
 fn deserialize(file: &SourceFile) -> TryConf {
     match toml::de::Deserializer::new(file.src.as_ref().unwrap()).deserialize_map(ConfVisitor(file)) {
-        Ok(mut conf) => {
-            extend_vec_if_indicator_present(&mut conf.conf.doc_valid_idents, DEFAULT_DOC_VALID_IDENTS);
-            extend_vec_if_indicator_present(&mut conf.conf.disallowed_names, DEFAULT_DISALLOWED_NAMES);
-            extend_vec_if_indicator_present(&mut conf.conf.allowed_prefixes, DEFAULT_ALLOWED_PREFIXES);
-            extend_vec_if_indicator_present(
-                &mut conf.conf.allow_renamed_params_for,
-                DEFAULT_ALLOWED_TRAITS_WITH_RENAMED_PARAMS,
-            );
-            // TODO: THIS SHOULD BE TESTED, this comment will be gone soon
-            if conf.conf.allowed_idents_below_min_chars.contains("..") {
-                conf.conf
-                    .allowed_idents_below_min_chars
-                    .extend(DEFAULT_ALLOWED_IDENTS_BELOW_MIN_CHARS.iter().map(ToString::to_string));
-            }
-
-            conf
-        },
+        Ok(conf) => conf,
         Err(e) => TryConf::from_toml_error(file, &e),
-    }
-}
-
-fn extend_vec_if_indicator_present(vec: &mut Vec<String>, default: &[&str]) {
-    if vec.contains(&"..".to_string()) {
-        vec.extend(default.iter().map(ToString::to_string));
     }
 }
 

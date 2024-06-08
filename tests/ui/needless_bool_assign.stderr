@@ -31,25 +31,5 @@ LL | |         a.field = true;
 LL | |     }
    | |_____^ help: you can reduce it to: `random(); a.field = true;`
 
-error: this `if` has identical blocks
-  --> tests/ui/needless_bool_assign.rs:32:17
-   |
-LL |       if random() {
-   |  _________________^
-LL | |         a.field = true;
-LL | |     } else {
-   | |_____^
-   |
-note: same as this
-  --> tests/ui/needless_bool_assign.rs:34:12
-   |
-LL |       } else {
-   |  ____________^
-LL | |         a.field = true;
-LL | |     }
-   | |_____^
-   = note: `-D clippy::if-same-then-else` implied by `-D warnings`
-   = help: to override `-D warnings` add `#[allow(clippy::if_same_then_else)]`
-
-error: aborting due to 4 previous errors
+error: aborting due to 3 previous errors
 

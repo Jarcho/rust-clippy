@@ -1,3 +1,4 @@
+use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::is_in_test;
 use clippy_utils::macros::{macro_backtrace, MacroCall};
@@ -45,9 +46,9 @@ pub struct DbgMacro {
 impl_lint_pass!(DbgMacro => [DBG_MACRO]);
 
 impl DbgMacro {
-    pub fn new(allow_dbg_in_tests: bool) -> Self {
+    pub fn new(conf: &'static Conf) -> Self {
         DbgMacro {
-            allow_dbg_in_tests,
+            allow_dbg_in_tests: conf.allow_dbg_in_tests,
             checked_dbg_call_site: FxHashSet::default(),
             prev_ctxt: SyntaxContext::root(),
         }

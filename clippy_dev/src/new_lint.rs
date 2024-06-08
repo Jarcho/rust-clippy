@@ -302,7 +302,7 @@ fn get_lint_file_contents(lint: &LintData<'_>, enable_msrv: bool) -> String {
 
             impl {name_camel} {{
                 #[must_use]
-                pub fn new(msrv: Msrv) -> Self {{
+                pub fn new(conf: &'static Conf) -> Self {{
                     Self {{ msrv }}
                 }}
             }}
