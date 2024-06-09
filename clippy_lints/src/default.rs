@@ -80,17 +80,17 @@ impl_lint_pass!(Default => [DEFAULT_TRAIT_ACCESS, FIELD_REASSIGN_WITH_DEFAULT]);
 
 impl<'tcx> LateLintPass<'tcx> for Default {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
-        if !expr.span.from_expansion()
+        if let ExprKind::Call(path, ..) = expr.kind
+            && let ExprKind::Path(ref qpath) = path.kind
+            && let QPath::Resolved(None, _path) = qpath
+            && !expr.span.from_expansion()
             // Avoid cases already linted by `field_reassign_with_default`
             && !self.reassigned_linted.contains(&expr.span)
-            && let ExprKind::Call(path, ..) = expr.kind
-            && !in_automatically_derived(cx.tcx, expr.hir_id)
-            && let ExprKind::Path(ref qpath) = path.kind
             && let Some(def_id) = cx.qpath_res(qpath, path.hir_id).opt_def_id()
             && cx.tcx.is_diagnostic_item(sym::default_fn, def_id)
+            && !in_automatically_derived(cx.tcx, expr.hir_id)
             && !is_update_syntax_base(cx, expr)
             // Detect and ignore <Foo as Default>::default() because these calls do explicitly name the type.
-            && let QPath::Resolved(None, _path) = qpath
             && let expr_ty = cx.typeck_results().expr_ty(expr)
             && let ty::Adt(def, ..) = expr_ty.kind()
             && !is_from_proc_macro(cx, expr)
@@ -124,12 +124,12 @@ impl<'tcx> LateLintPass<'tcx> for Default {
             let (local, variant, binding_name, binding_type, span) = if let StmtKind::Let(local) = stmt.kind
                 // only take `let ...` statements
                 && let Some(expr) = local.init
-                && !in_automatically_derived(cx.tcx, expr.hir_id)
-                && !expr.span.from_expansion()
                 // only take bindings to identifiers
                 && let PatKind::Binding(_, binding_id, ident, _) = local.pat.kind
+                && !expr.span.from_expansion()
                 // only when assigning `... = Default::default()`
                 && is_expr_default(expr, cx)
+                && !in_automatically_derived(cx.tcx, expr.hir_id)
                 && let binding_type = cx.typeck_results().node_type(binding_id)
                 && let ty::Adt(adt, args) = *binding_type.kind()
                 && adt.is_struct()
