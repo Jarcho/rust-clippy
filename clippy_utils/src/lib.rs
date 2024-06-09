@@ -102,8 +102,8 @@ use rustc_hir::LangItem::{OptionNone, OptionSome, ResultErr, ResultOk};
 use rustc_hir::{
     self as hir, def, Arm, ArrayLen, BindingMode, Block, BlockCheckMode, Body, ByRef, Closure, Destination, Expr,
     ExprField, ExprKind, FnDecl, FnRetTy, GenericArgs, HirId, Impl, ImplItem, ImplItemKind, ImplItemRef, Item,
-    ItemKind, LangItem, LetStmt, MatchSource, Mutability, Node, OwnerId, Param, Pat, PatKind, Path, PathSegment,
-    PrimTy, QPath, Stmt, StmtKind, TraitItem, TraitItemKind, TraitItemRef, TraitRef, TyKind, UnOp,
+    ItemKind, LangItem, LetStmt, MatchSource, Mutability, Node, OwnerId, OwnerNode, Param, Pat, PatKind, Path,
+    PathSegment, PrimTy, QPath, Stmt, StmtKind, TraitItem, TraitItemKind, TraitItemRef, TraitRef, TyKind, UnOp,
 };
 use rustc_lexer::{tokenize, TokenKind};
 use rustc_lint::{LateContext, Level, Lint, LintContext};
@@ -1902,8 +1902,16 @@ pub fn any_parent_has_attr(tcx: TyCtxt<'_>, node: HirId, symbol: Symbol) -> bool
     false
 }
 
-pub fn any_parent_is_automatically_derived(tcx: TyCtxt<'_>, node: HirId) -> bool {
-    any_parent_has_attr(tcx, node, sym::automatically_derived)
+pub fn in_automatically_derived(tcx: TyCtxt<'_>, node: HirId) -> bool {
+    tcx.hir()
+        .parent_owner_iter(node)
+        .find(|(_, node)| matches!(node, OwnerNode::Item(item) if matches!(item.kind, ItemKind::Impl(_))))
+        .is_some_and(|(id, _)| {
+            has_attr(
+                tcx.hir().attrs(tcx.local_def_id_to_hir_id(id.def_id)),
+                sym::automatically_derived,
+            )
+        })
 }
 
 /// Matches a function call with the given path and returns the arguments.
