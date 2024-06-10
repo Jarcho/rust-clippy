@@ -42,7 +42,7 @@ impl_lint_pass!(DisallowedNames => [DISALLOWED_NAMES]);
 impl<'tcx> LateLintPass<'tcx> for DisallowedNames {
     fn check_pat(&mut self, cx: &LateContext<'tcx>, pat: &'tcx Pat<'_>) {
         if let PatKind::Binding(.., ident, _) = pat.kind
-            && self.disallow.contains(&ident.name.to_string())
+            && self.disallow.contains(ident.name.as_str())
             && !is_in_test(cx.tcx, pat.hir_id)
         {
             span_lint(
