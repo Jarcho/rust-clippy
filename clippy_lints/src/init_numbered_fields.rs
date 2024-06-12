@@ -6,8 +6,6 @@ use rustc_hir::{Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use std::borrow::Cow;
-use std::cmp::Reverse;
-use std::collections::BinaryHeap;
 
 declare_clippy_lint! {
     /// ### What it does
@@ -44,38 +42,37 @@ declare_lint_pass!(NumberedFields => [INIT_NUMBERED_FIELDS]);
 
 impl<'tcx> LateLintPass<'tcx> for NumberedFields {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, e: &'tcx Expr<'_>) {
-        if let ExprKind::Struct(path, fields, None) = e.kind {
-            if !fields.is_empty()
-                && !e.span.from_expansion()
-                && fields
-                    .iter()
-                    .all(|f| f.ident.as_str().as_bytes().iter().all(u8::is_ascii_digit))
-                && !matches!(cx.qpath_res(path, e.hir_id), Res::Def(DefKind::TyAlias, ..))
-            {
-                let expr_spans = fields
-                    .iter()
-                    .map(|f| (Reverse(f.ident.as_str().parse::<usize>().unwrap()), f.expr.span))
-                    .collect::<BinaryHeap<_>>();
-                let mut appl = Applicability::MachineApplicable;
-                let snippet = format!(
-                    "{}({})",
-                    snippet_with_applicability(cx, path.span(), "..", &mut appl),
-                    expr_spans
-                        .into_iter_sorted()
-                        .map(|(_, span)| snippet_with_context(cx, span, path.span().ctxt(), "..", &mut appl).0)
-                        .intersperse(Cow::Borrowed(", "))
-                        .collect::<String>()
-                );
-                span_lint_and_sugg(
-                    cx,
-                    INIT_NUMBERED_FIELDS,
-                    e.span,
-                    "used a field initializer for a tuple struct",
-                    "try",
-                    snippet,
-                    appl,
-                );
-            }
+        if let ExprKind::Struct(path, fields @ [field, ..], None) = e.kind
+            // If the first character is a digit it has to be a tuple.
+            && field.ident.as_str().as_bytes().first().is_some_and(u8::is_ascii_digit)
+            && !e.span.from_expansion()
+            // Intentionally ignore type aliases.
+            && !matches!(cx.qpath_res(path, e.hir_id), Res::Def(DefKind::TyAlias, _))
+            && let Ok(mut expr_spans) = fields
+                .iter()
+                .map(|f| f.ident.as_str().parse::<usize>().map(|x| (x, f.expr.span)))
+                .collect::<Result<Vec<_>, _>>()
+        {
+            expr_spans.sort_by_key(|&(idx, _)| idx);
+            let mut appl = Applicability::MachineApplicable;
+            let snippet = format!(
+                "{}({})",
+                snippet_with_applicability(cx, path.span(), "..", &mut appl),
+                expr_spans
+                    .into_iter()
+                    .map(|(_, span)| snippet_with_context(cx, span, path.span().ctxt(), "..", &mut appl).0)
+                    .intersperse(Cow::Borrowed(", "))
+                    .collect::<String>()
+            );
+            span_lint_and_sugg(
+                cx,
+                INIT_NUMBERED_FIELDS,
+                e.span,
+                "used a field initializer for a tuple struct",
+                "try",
+                snippet,
+                appl,
+            );
         }
     }
 }
