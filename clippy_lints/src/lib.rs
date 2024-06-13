@@ -3,6 +3,7 @@
 #![feature(box_patterns)]
 #![feature(if_let_guard)]
 #![feature(iter_intersperse)]
+#![feature(iter_partition_in_place)]
 #![feature(let_chains)]
 #![feature(lint_reasons)]
 #![feature(never_type)]
