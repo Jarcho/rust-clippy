@@ -30,23 +30,10 @@ fn main() {
     let _ = SomeOtherStruct::from("no warning");
     let _ = SomeOtherStruct::from(""); // Again: no warning.
 
-    let _ = String::try_from("").unwrap();
-    let _ = String::try_from("no warning").unwrap();
-    let _ = String::try_from("no warning").expect("this should not warn");
-    let _ = SomeOtherStruct::try_from("no warning").unwrap();
-    let _ = SomeOtherStruct::try_from("").unwrap(); // Again: no warning.
-
     let _: String = From::from("");
     let _: String = From::from("no warning");
     let _: SomeOtherStruct = From::from("no warning");
     let _: SomeOtherStruct = From::from(""); // Again: no warning.
-
-    let _: String = TryFrom::try_from("").unwrap();
-    let _: String = TryFrom::try_from("no warning").unwrap();
-    let _: String = TryFrom::try_from("no warning").expect("this should not warn");
-    let _: String = TryFrom::try_from("").expect("this should warn");
-    let _: SomeOtherStruct = TryFrom::try_from("no_warning").unwrap();
-    let _: SomeOtherStruct = TryFrom::try_from("").unwrap(); // Again: no warning.
 
     // Macros (never warn)
     create_strings_from_macro!("");

@@ -1,11 +1,11 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
+use clippy_utils::last_path_segment;
 use rustc_ast::LitKind;
 use rustc_errors::Applicability::MachineApplicable;
-use rustc_hir::{Expr, ExprKind, PathSegment, QPath, TyKind};
+use rustc_hir::{Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
-use rustc_middle::ty;
 use rustc_session::declare_lint_pass;
-use rustc_span::{sym, symbol, Span};
+use rustc_span::{sym, symbol, Symbol};
 
 declare_clippy_lint! {
     /// ### What it does
@@ -37,96 +37,58 @@ declare_lint_pass!(ManualStringNew => [MANUAL_STRING_NEW]);
 
 impl LateLintPass<'_> for ManualStringNew {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &Expr<'_>) {
-        if expr.span.from_expansion() {
-            return;
-        }
-
-        let ty = cx.typeck_results().expr_ty(expr);
-        match ty.kind() {
-            ty::Adt(adt_def, _) if adt_def.is_struct() => {
-                if cx.tcx.lang_items().string() != Some(adt_def.did()) {
-                    return;
-                }
+        let target_id = match expr.kind {
+            ExprKind::Call(func, [arg])
+                if is_empty_str(arg)
+                    && let ExprKind::Path(qpath) = &func.kind
+                    && is_linted_fn(last_path_segment(qpath).ident.name) =>
+            {
+                cx.qpath_res(qpath, func.hir_id).opt_def_id()
+            },
+            ExprKind::MethodCall(path_segment, recv, [], _)
+                if is_empty_str(recv) && is_linted_fn(path_segment.ident.name) =>
+            {
+                cx.typeck_results().type_dependent_def_id(expr.hir_id)
             },
             _ => return,
-        }
+        };
 
-        match expr.kind {
-            ExprKind::Call(func, args) => {
-                parse_call(cx, expr.span, func, args);
-            },
-            ExprKind::MethodCall(path_segment, receiver, ..) => {
-                parse_method_call(cx, expr.span, path_segment, receiver);
-            },
-            _ => (),
-        }
-    }
-}
-
-/// Checks if an expression's kind corresponds to an empty &str.
-fn is_expr_kind_empty_str(expr_kind: &ExprKind<'_>) -> bool {
-    if let ExprKind::Lit(lit) = expr_kind
-        && let LitKind::Str(value, _) = lit.node
-        && value == symbol::kw::Empty
-    {
-        return true;
-    }
-
-    false
-}
-
-fn warn_then_suggest(cx: &LateContext<'_>, span: Span) {
-    span_lint_and_sugg(
-        cx,
-        MANUAL_STRING_NEW,
-        span,
-        "empty String is being created manually",
-        "consider using",
-        "String::new()".into(),
-        MachineApplicable,
-    );
-}
-
-/// Tries to parse an expression as a method call, emitting the warning if necessary.
-fn parse_method_call(cx: &LateContext<'_>, span: Span, path_segment: &PathSegment<'_>, receiver: &Expr<'_>) {
-    let ident = path_segment.ident.as_str();
-    let method_arg_kind = &receiver.kind;
-    if ["to_string", "to_owned", "into"].contains(&ident) && is_expr_kind_empty_str(method_arg_kind) {
-        warn_then_suggest(cx, span);
-    } else if let ExprKind::Call(func, args) = method_arg_kind {
-        // If our first argument is a function call itself, it could be an `unwrap`-like function.
-        // E.g. String::try_from("hello").unwrap(), TryFrom::try_from("").expect("hello"), etc.
-        parse_call(cx, span, func, args);
-    }
-}
-
-/// Tries to parse an expression as a function call, emitting the warning if necessary.
-fn parse_call(cx: &LateContext<'_>, span: Span, func: &Expr<'_>, args: &[Expr<'_>]) {
-    if args.len() != 1 {
-        return;
-    }
-
-    let arg_kind = &args[0].kind;
-    if let ExprKind::Path(qpath) = &func.kind {
-        // String::from(...) or String::try_from(...)
-        if let QPath::TypeRelative(ty, path_seg) = qpath
-            && [sym::from, sym::try_from].contains(&path_seg.ident.name)
-            && let TyKind::Path(qpath) = &ty.kind
-            && let QPath::Resolved(_, path) = qpath
-            && let [path_seg] = path.segments
-            && path_seg.ident.name == sym::String
-            && is_expr_kind_empty_str(arg_kind)
+        if let Some(target_id) = target_id
+            && !expr.span.from_expansion()
+            && let Some(did) = cx.tcx.trait_of_item(target_id)
+            && matches!(
+                cx.tcx.get_diagnostic_name(did),
+                Some(sym::ToOwned | sym::Into | sym::From | sym::ToString)
+            )
+            && let Some(adt) = cx.typeck_results().expr_ty(expr).ty_adt_def()
+            && Some(adt.did()) == cx.tcx.lang_items().string()
         {
-            warn_then_suggest(cx, span);
-        } else if let QPath::Resolved(_, path) = qpath {
-            // From::from(...) or TryFrom::try_from(...)
-            if let [path_seg1, path_seg2] = path.segments
-                && is_expr_kind_empty_str(arg_kind)
-                && ((path_seg1.ident.name == sym::From && path_seg2.ident.name == sym::from)
-                    || (path_seg1.ident.name == sym::TryFrom && path_seg2.ident.name == sym::try_from))
-            {
-                warn_then_suggest(cx, span);
-            }
+            span_lint_and_sugg(
+                cx,
+                MANUAL_STRING_NEW,
+                expr.span,
+                "empty String is being created manually",
+                "consider using",
+                "String::new()".into(),
+                MachineApplicable,
+            );
         }
+    }
+}
+
+fn is_empty_str(e: &Expr<'_>) -> bool {
+    if let ExprKind::Lit(lit) = e.kind
+        && let LitKind::Str(value, _) = lit.node
+    {
+        value == symbol::kw::Empty
+    } else {
+        false
+    }
+}
+
+fn is_linted_fn(s: Symbol) -> bool {
+    match s {
+        sym::from | sym::to_string => true,
+        _ => matches!(s.as_str(), "into" | "to_owned"),
     }
 }

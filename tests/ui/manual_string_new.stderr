@@ -32,28 +32,10 @@ LL |     let _ = <String>::from("");
    |             ^^^^^^^^^^^^^^^^^^ help: consider using: `String::new()`
 
 error: empty String is being created manually
-  --> tests/ui/manual_string_new.rs:33:13
-   |
-LL |     let _ = String::try_from("").unwrap();
-   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider using: `String::new()`
-
-error: empty String is being created manually
-  --> tests/ui/manual_string_new.rs:39:21
+  --> tests/ui/manual_string_new.rs:33:21
    |
 LL |     let _: String = From::from("");
    |                     ^^^^^^^^^^^^^^ help: consider using: `String::new()`
 
-error: empty String is being created manually
-  --> tests/ui/manual_string_new.rs:44:21
-   |
-LL |     let _: String = TryFrom::try_from("").unwrap();
-   |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider using: `String::new()`
-
-error: empty String is being created manually
-  --> tests/ui/manual_string_new.rs:47:21
-   |
-LL |     let _: String = TryFrom::try_from("").expect("this should warn");
-   |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider using: `String::new()`
-
-error: aborting due to 9 previous errors
+error: aborting due to 6 previous errors
 
