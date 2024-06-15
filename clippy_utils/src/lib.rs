@@ -2889,6 +2889,17 @@ pub fn tokenize_with_text(s: &str) -> impl Iterator<Item = (TokenKind, &str)> {
     })
 }
 
+/// Tokenizes the input while keeping both text associated with each token and it's position in the
+/// string.
+pub fn tokenize_with_text_and_pos(s: &str) -> impl Iterator<Item = (TokenKind, u32, &str)> {
+    let mut pos = 0;
+    tokenize(s).map(move |t| {
+        let end = pos + t.len;
+        let range = pos as usize..end as usize;
+        (t.kind, mem::replace(&mut pos, end), s.get(range).unwrap_or_default())
+    })
+}
+
 /// Checks whether a given span has any comment token
 /// This checks for all types of comment: line "//", block "/**", doc "///" "//!"
 pub fn span_contains_comment(sm: &SourceMap, span: Span) -> bool {

@@ -1,10 +1,13 @@
 use clippy_utils::diagnostics::span_lint_and_then;
-use clippy_utils::source::snippet_with_applicability;
+use clippy_utils::source::get_source_text;
+use clippy_utils::tokenize_with_text_and_pos;
+use core::ops::ControlFlow;
 use rustc_errors::Applicability;
 use rustc_hir::{Item, ItemKind};
+use rustc_lexer::TokenKind;
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
-use rustc_span::{BytePos, Pos};
+use rustc_span::{sym, BytePos, Pos, SpanData};
 use rustc_target::spec::abi::Abi;
 
 declare_clippy_lint! {
@@ -37,34 +40,50 @@ declare_lint_pass!(NoMangleWithRustAbi => [NO_MANGLE_WITH_RUST_ABI]);
 
 impl<'tcx> LateLintPass<'tcx> for NoMangleWithRustAbi {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'tcx>) {
-        if let ItemKind::Fn(fn_sig, _, _) = &item.kind {
-            let attrs = cx.tcx.hir().attrs(item.hir_id());
-            let mut app = Applicability::MaybeIncorrect;
-            let snippet = snippet_with_applicability(cx, fn_sig.span, "..", &mut app);
-            for attr in attrs {
-                if let Some(ident) = attr.ident()
-                    && ident.name == rustc_span::sym::no_mangle
-                    && fn_sig.header.abi == Abi::Rust
-                    && let Some((fn_attrs, _)) = snippet.split_once("fn")
-                    && !fn_attrs.contains("extern")
-                {
-                    let sugg_span = fn_sig
-                        .span
-                        .with_lo(fn_sig.span.lo() + BytePos::from_usize(fn_attrs.len()))
-                        .shrink_to_lo();
+        if let ItemKind::Fn(fn_sig, _, _) = &item.kind
+            && fn_sig.header.abi == Abi::Rust
+            && cx
+                .tcx
+                .hir()
+                .attrs(item.hir_id())
+                .iter()
+                .any(|attr| attr.ident().is_some_and(|name| name.name == sym::no_mangle))
+            && let Some(src) = get_source_text(cx, fn_sig.span)
+            && let Some(src) = src.as_str()
+        {
+            if let ControlFlow::Break((pos, false)) = tokenize_with_text_and_pos(src)
+                .filter(|(t, ..)| matches!(t, TokenKind::Ident))
+                .try_fold(false, |found, (_, pos, s)| match s {
+                    "fn" => ControlFlow::Break((pos, found)),
+                    "extern" => ControlFlow::Continue(true),
+                    _ => ControlFlow::Continue(found),
+                })
+            {
+                span_lint_and_then(
+                    cx,
+                    NO_MANGLE_WITH_RUST_ABI,
+                    fn_sig.span,
+                    "`#[no_mangle]` set on a function with the default (`Rust`) ABI",
+                    |diag| {
+                        let data = fn_sig.span.data();
+                        let pos = data.lo + BytePos::from_u32(pos);
+                        let span = SpanData {
+                            lo: pos,
+                            hi: pos,
+                            ..data
+                        }
+                        .span();
 
-                    span_lint_and_then(
-                        cx,
-                        NO_MANGLE_WITH_RUST_ABI,
-                        fn_sig.span,
-                        "`#[no_mangle]` set on a function with the default (`Rust`) ABI",
-                        |diag| {
-                            diag.span_suggestion(sugg_span, "set an ABI", "extern \"C\" ", app)
-                                .span_suggestion(sugg_span, "or explicitly set the default", "extern \"Rust\" ", app);
-                        },
-                    );
-                }
+                        diag.span_suggestion(span, "set an ABI", "extern \"C\" ", Applicability::MaybeIncorrect)
+                            .span_suggestion(
+                                span,
+                                "or explicitly set the default",
+                                "extern \"Rust\" ",
+                                Applicability::MaybeIncorrect,
+                            );
+                    },
+                );
             }
-        }
+        };
     }
 }
