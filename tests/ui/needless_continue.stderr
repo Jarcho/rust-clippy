@@ -1,140 +1,129 @@
-error: this `else` block is redundant
-  --> tests/ui/needless_continue.rs:30:16
+error: this `continue` expression is redundant
+  --> tests/ui/needless_continue.rs:10:9
    |
-LL |           } else {
-   |  ________________^
-LL | |
-LL | |             continue;
-LL | |         }
-   | |_________^
+LL |       loop {
+   |  ___________-
+LL | |         continue;
+   | |_________^^^^^^^^- help: remove this
    |
-   = help: consider dropping the `else` clause and merging the code that follows (in the loop) with the `if` block
-                   if i % 2 == 0 && i % 3 == 0 {
-                       println!("{}", i);
-                       println!("{}", i + 1);
-                       if i % 5 == 0 {
-                           println!("{}", i + 2);
-                       }
-                       let i = 0;
-                       println!("bar {} ", i);
-                       // merged code follows:
-                       println!("bleh");
-                       {
-                           println!("blah");
-                       }
-                       if !(!(i == 2) || !(i == 5)) {
-                           println!("lama");
-                       }
-                       if (zero!(i % 2) || nonzero!(i % 5)) && i % 3 != 0 {
-
-                           continue;
-                       } else {
-                           println!("Blabber");
-                           println!("Jabber");
-                       }
-                       println!("bleh");
-                   }
    = note: `-D clippy::needless-continue` implied by `-D warnings`
    = help: to override `-D warnings` add `#[allow(clippy::needless_continue)]`
 
-error: there is no need for an explicit `else` block for this `if` expression
-  --> tests/ui/needless_continue.rs:46:9
+error: this `continue` expression is redundant
+  --> tests/ui/needless_continue.rs:15:9
    |
-LL | /         if (zero!(i % 2) || nonzero!(i % 5)) && i % 3 != 0 {
-LL | |
+LL |           let _ = 1 + 1;
+   |  _______________________-
+LL | |         continue;
+   | |_________^^^^^^^^- help: remove this
+
+error: this `continue` expression is redundant
+  --> tests/ui/needless_continue.rs:24:9
+   |
+LL |           };
+   |  ___________-
+LL | |         continue;
+   | |_________^^^^^^^^- help: remove this
+
+error: this `continue` expression is redundant
+  --> tests/ui/needless_continue.rs:29:13
+   |
+LL |           if true {
+   |  __________________-
 LL | |             continue;
-LL | |         } else {
-LL | |             println!("Blabber");
-LL | |             println!("Jabber");
-LL | |         }
-   | |_________^
-   |
-   = help: consider dropping the `else` clause
-                   if (zero!(i % 2) || nonzero!(i % 5)) && i % 3 != 0 {
-
-                       continue;
-                   }
-                   {
-                       println!("Blabber");
-                       println!("Jabber");
-                   }
+   | |_____________^^^^^^^^- help: remove this
 
 error: this `continue` expression is redundant
-  --> tests/ui/needless_continue.rs:60:9
+  --> tests/ui/needless_continue.rs:35:13
    |
-LL |         continue;
-   |         ^^^^^^^^^
-   |
-   = help: consider dropping the `continue` expression
+LL |           if true {
+   |  __________________-
+LL | |             continue;
+   | |_____________^^^^^^^^- help: remove this
 
 error: this `continue` expression is redundant
-  --> tests/ui/needless_continue.rs:68:9
+  --> tests/ui/needless_continue.rs:45:13
    |
-LL |         continue;
-   |         ^^^^^^^^^
-   |
-   = help: consider dropping the `continue` expression
+LL |           } else {
+   |  _________________-
+LL | |             continue;
+   | |_____________^^^^^^^^- help: remove this
 
 error: this `continue` expression is redundant
-  --> tests/ui/needless_continue.rs:76:9
+  --> tests/ui/needless_continue.rs:52:18
    |
-LL |         continue
-   |         ^^^^^^^^
-   |
-   = help: consider dropping the `continue` expression
+LL |             1 => continue,
+   |                 -^^^^^^^^
+   |                 |
+   |                 help: remove this: `{}`
 
 error: this `continue` expression is redundant
-  --> tests/ui/needless_continue.rs:85:9
+  --> tests/ui/needless_continue.rs:63:22
    |
-LL |         continue
-   |         ^^^^^^^^
-   |
-   = help: consider dropping the `continue` expression
+LL |                 0 => continue,
+   |                     -^^^^^^^^
+   |                     |
+   |                     help: remove this: `{}`
 
-error: this `else` block is redundant
-  --> tests/ui/needless_continue.rs:136:24
+error: this `continue` expression is redundant
+  --> tests/ui/needless_continue.rs:66:25
    |
-LL |                   } else {
-   |  ________________________^
-LL | |
-LL | |                     continue 'inner;
-LL | |                 }
-   | |_________________^
+LL |                       if true {
+   |  ______________________________-
+LL | |                         continue;
+   | |_________________________^^^^^^^^- help: remove this
+
+error: this `continue` expression is redundant
+  --> tests/ui/needless_continue.rs:75:17
    |
-   = help: consider dropping the `else` clause and merging the code that follows (in the loop) with the `if` block
-                           if condition() {
-                               println!("bar-3");
-                               // merged code follows:
-                               println!("bar-4");
-                               update_condition();
-                               if condition() {
+LL |                   let _ = 1;
+   |  ___________________________-
+LL | |                 continue;
+   | |_________________^^^^^^^^- help: remove this
 
-                                   continue;
-                               } else {
-                                   println!("bar-5");
-                               }
-                               println!("bar-6");
-                           }
-
-error: there is no need for an explicit `else` block for this `if` expression
-  --> tests/ui/needless_continue.rs:143:17
+error: this `continue` expression is redundant
+  --> tests/ui/needless_continue.rs:85:22
    |
-LL | /                 if condition() {
-LL | |
-LL | |                     continue;
-LL | |                 } else {
-LL | |                     println!("bar-5");
-LL | |                 }
-   | |_________________^
+LL |                 1 => continue 'inner,
+   |                     -^^^^^^^^^^^^^^^
+   |                     |
+   |                     help: remove this: `{}`
+
+error: this `continue` expression is redundant
+  --> tests/ui/needless_continue.rs:86:22
    |
-   = help: consider dropping the `else` clause
-                           if condition() {
+LL |                 _ => continue,
+   |                     -^^^^^^^^
+   |                     |
+   |                     help: remove this: `{}`
 
-                               continue;
-                           }
-                           {
-                               println!("bar-5");
-                           }
+error: this `continue` expression is redundant
+  --> tests/ui/needless_continue.rs:95:22
+   |
+LL |                 1 => continue,
+   |                     -^^^^^^^^
+   |                     |
+   |                     help: remove this: `{}`
 
-error: aborting due to 8 previous errors
+error: this `continue` expression is redundant
+  --> tests/ui/needless_continue.rs:116:13
+   |
+LL |           loop {
+   |  _______________-
+LL | |             continue;
+   | |_____________^^^^^^^^- help: remove this
+   |
+   = note: this error originates in the macro `__inline_mac_fn_main` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: this `continue` expression is redundant
+  --> tests/ui/needless_continue.rs:141:17
+   |
+LL |               } else {
+   |  _____________________-
+LL | |                 continue;
+   | |_________________^^^^^^^^- help: remove this
+   |
+   = note: this error originates in the macro `__inline_mac_fn_main` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 15 previous errors
 
