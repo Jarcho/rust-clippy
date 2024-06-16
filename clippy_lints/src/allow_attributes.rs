@@ -57,7 +57,7 @@ impl LateLintPass<'_> for AllowAttribute {
             && let Some(ident) = attr.ident()
             && ident.name == rustc_span::symbol::sym::allow
             && !in_external_macro(cx.sess(), attr.span)
-            && !is_from_proc_macro(cx, &attr)
+            && !is_from_proc_macro(cx, attr)
         {
             span_lint_and_sugg(
                 cx,
