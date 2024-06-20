@@ -11,10 +11,11 @@ use rustc_session::Session;
 use rustc_span::source_map::{original_sp, SourceMap};
 use rustc_span::{hygiene, BytePos, Pos, SourceFile, SourceFileAndLine, Span, SpanData, SyntaxContext, DUMMY_SP};
 use std::borrow::Cow;
+use std::fmt;
 use std::ops::Range;
 
-/// A type which can be converted to the range portion of a `Span`.
-pub trait SpanRange {
+/// Conversion of a value into the range portion of a `Span`.
+pub trait SpanRange: Sized {
     fn into_range(self) -> Range<BytePos>;
 }
 impl SpanRange for Span {
@@ -34,6 +35,141 @@ impl SpanRange for Range<BytePos> {
     }
 }
 
+/// Conversion of a value into a `Span`
+pub trait IntoSpan: Sized {
+    fn into_span(self) -> Span;
+    fn with_ctxt(self, ctxt: SyntaxContext) -> Span;
+}
+impl IntoSpan for Span {
+    fn into_span(self) -> Span {
+        self
+    }
+    fn with_ctxt(self, ctxt: SyntaxContext) -> Span {
+        self.with_ctxt(ctxt)
+    }
+}
+impl IntoSpan for SpanData {
+    fn into_span(self) -> Span {
+        self.span()
+    }
+    fn with_ctxt(self, ctxt: SyntaxContext) -> Span {
+        Span::new(self.lo, self.hi, ctxt, self.parent)
+    }
+}
+impl IntoSpan for Range<BytePos> {
+    fn into_span(self) -> Span {
+        Span::with_root_ctxt(self.start, self.end)
+    }
+    fn with_ctxt(self, ctxt: SyntaxContext) -> Span {
+        Span::new(self.start, self.end, ctxt, None)
+    }
+}
+
+pub trait SpanRangeExt: SpanRange {
+    /// Gets the source file, and range in the file, of the given span. Returns `None` if the span
+    /// extends through multiple files, or is malformed.
+    fn get_source_text(self, cx: &impl LintContext) -> Option<SourceFileRange> {
+        get_source_text(cx.sess().source_map(), self.into_range())
+    }
+
+    /// Calls the given function with the source text referenced and returns the value. Returns
+    /// `None` if the source text cannot be retrieved.
+    fn with_source_text<T>(self, cx: &impl LintContext, f: impl for<'a> FnOnce(&'a str) -> T) -> Option<T> {
+        with_source_text(cx.sess().source_map(), self.into_range(), f)
+    }
+
+    /// Calls the given function with the both the text of the source file and the referenced range,
+    /// and returns the value. Returns `None` if the source text cannot be retrieved.
+    fn with_source_text_and_range<T>(
+        self,
+        cx: &impl LintContext,
+        f: impl for<'a> FnOnce(&'a str, Range<usize>) -> T,
+    ) -> Option<T> {
+        with_source_text_and_range(cx.sess().source_map(), self.into_range(), f)
+    }
+
+    /// Calls the given function with the both the text of the source file and the referenced range,
+    /// and uses the result to expand the range. The first value expands the start of the range, and
+    /// the second expands the end of the range. Returns `None` if the source text cannot be
+    /// retrieved, or no result is returned.
+    fn expand_source_range_by(
+        self,
+        cx: &impl LintContext,
+        f: impl for<'a> FnOnce(&'a str, Range<usize>) -> Option<(usize, usize)>,
+    ) -> Option<Range<BytePos>> {
+        expand_source_range_by(cx.sess().source_map(), self.into_range(), f)
+    }
+
+    /// Writes the referenced source text to the given writer. Will return `Err` if the source text
+    /// could not be retrieved.
+    fn write_source_text_to(self, cx: &impl LintContext, dst: &mut impl fmt::Write) -> fmt::Result {
+        write_source_text_to(cx.sess().source_map(), self.into_range(), dst)
+    }
+
+    /// Extracts the referenced source text as an owned string.
+    fn source_text_to_string(self, cx: &impl LintContext) -> Option<String> {
+        source_text_to_string(cx.sess().source_map(), self.into_range())
+    }
+}
+impl<T: SpanRange> SpanRangeExt for T {}
+
+fn get_source_text(sm: &SourceMap, sp: Range<BytePos>) -> Option<SourceFileRange> {
+    let start = sm.lookup_byte_offset(sp.start);
+    let end = sm.lookup_byte_offset(sp.end);
+    if !Lrc::ptr_eq(&start.sf, &end.sf) || start.pos > end.pos {
+        return None;
+    }
+    let range = start.pos.to_usize()..end.pos.to_usize();
+    Some(SourceFileRange { sf: start.sf, range })
+}
+
+fn with_source_text<T>(sm: &SourceMap, sp: Range<BytePos>, f: impl for<'a> FnOnce(&'a str) -> T) -> Option<T> {
+    if let Some(src) = get_source_text(sm, sp)
+        && let Some(src) = src.as_str()
+    {
+        Some(f(src))
+    } else {
+        None
+    }
+}
+
+fn with_source_text_and_range<T>(
+    sm: &SourceMap,
+    sp: Range<BytePos>,
+    f: impl for<'a> FnOnce(&'a str, Range<usize>) -> T,
+) -> Option<T> {
+    if let Some(src) = get_source_text(sm, sp)
+        && let Some(text) = &src.sf.src
+    {
+        Some(f(text, src.range.clone()))
+    } else {
+        None
+    }
+}
+
+fn expand_source_range_by(
+    sm: &SourceMap,
+    sp: Range<BytePos>,
+    f: impl for<'a> FnOnce(&'a str, Range<usize>) -> Option<(usize, usize)>,
+) -> Option<Range<BytePos>> {
+    with_source_text_and_range(sm, sp.clone(), f)
+        .flatten()
+        .map(|(start, end)| {
+            BytePos::from_usize(sp.start.to_usize() - start)..BytePos::from_usize(sp.end.to_usize() + end)
+        })
+}
+
+fn write_source_text_to(sm: &SourceMap, sp: Range<BytePos>, dst: &mut impl fmt::Write) -> fmt::Result {
+    match with_source_text(sm, sp, |src| dst.write_str(src)) {
+        Some(x) => x,
+        None => Err(fmt::Error),
+    }
+}
+
+fn source_text_to_string(sm: &SourceMap, sp: Range<BytePos>) -> Option<String> {
+    with_source_text(sm, sp, |src| src.to_owned())
+}
+
 pub struct SourceFileRange {
     pub sf: Lrc<SourceFile>,
     pub range: Range<usize>,
@@ -44,21 +180,6 @@ impl SourceFileRange {
     pub fn as_str(&self) -> Option<&str> {
         self.sf.src.as_ref().and_then(|x| x.get(self.range.clone()))
     }
-}
-
-/// Gets the source file, and range in the file, of the given span. Returns `None` if the span
-/// extends through multiple files, or is malformed.
-pub fn get_source_text(cx: &impl LintContext, sp: impl SpanRange) -> Option<SourceFileRange> {
-    fn f(sm: &SourceMap, sp: Range<BytePos>) -> Option<SourceFileRange> {
-        let start = sm.lookup_byte_offset(sp.start);
-        let end = sm.lookup_byte_offset(sp.end);
-        if !Lrc::ptr_eq(&start.sf, &end.sf) || start.pos > end.pos {
-            return None;
-        }
-        let range = start.pos.to_usize()..end.pos.to_usize();
-        Some(SourceFileRange { sf: start.sf, range })
-    }
-    f(cx.sess().source_map(), sp.into_range())
 }
 
 /// Like `snippet_block`, but add braces if the expr is not an `ExprKind::Block`.
