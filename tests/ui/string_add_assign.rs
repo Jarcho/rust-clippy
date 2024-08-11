@@ -1,4 +1,4 @@
-#[allow(clippy::string_add, unused)]
+#[allow(clippy::string_add, unused, clippy::assign_op_pattern)]
 #[warn(clippy::string_add_assign)]
 fn main() {
     // ignores assignment distinction
