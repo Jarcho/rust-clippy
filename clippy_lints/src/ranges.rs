@@ -186,9 +186,10 @@ impl_lint_pass!(Ranges => [
 impl<'tcx> LateLintPass<'tcx> for Ranges {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if let ExprKind::Binary(ref op, l, r) = expr.kind
+            && !expr.span.from_expansion()
             && self.msrv.meets(cx, msrvs::RANGE_CONTAINS)
         {
-            check_possible_range_contains(cx, op.node, l, r, expr, expr.span);
+            check_possible_range_contains(cx, op.node, l, r, expr.span);
         }
 
         check_exclusive_range_plus_one(cx, expr);
@@ -197,14 +198,7 @@ impl<'tcx> LateLintPass<'tcx> for Ranges {
     }
 }
 
-fn check_possible_range_contains(
-    cx: &LateContext<'_>,
-    op: BinOpKind,
-    left: &Expr<'_>,
-    right: &Expr<'_>,
-    expr: &Expr<'_>,
-    span: Span,
-) {
+fn check_possible_range_contains(cx: &LateContext<'_>, op: BinOpKind, left: &Expr<'_>, right: &Expr<'_>, span: Span) {
     if is_in_const_context(cx) {
         return;
     }
@@ -287,15 +281,17 @@ fn check_possible_range_contains(
 
     // If the LHS is the same operator, we have to recurse to get the "real" RHS, since they have
     // the same operator precedence
-    if let ExprKind::Binary(ref lhs_op, _left, new_lhs) = left.kind
+    if let ExprKind::Binary(ref lhs_op, _, new_lhs) = left.kind
         && op == lhs_op.node
-        && let new_span = Span::new(new_lhs.span.lo(), right.span.hi(), expr.span.ctxt(), expr.span.parent())
-        && new_span.check_source_text(cx, |src| {
+        && !new_lhs.span.from_expansion()
+        && let Some(span) = new_lhs.span.map_range(cx, |file| {
+            file.set_hi(span.hi());
+            let src = file.src_text()?;
             // Do not continue if we have mismatched number of parens, otherwise the suggestion is wrong
-            src.matches('(').count() == src.matches(')').count()
+            (src.matches('(').count() == src.matches(')').count()).then_some(file)
         })
     {
-        check_possible_range_contains(cx, op, new_lhs, right, expr, new_span);
+        check_possible_range_contains(cx, op, new_lhs, right, span);
     }
 }
 
@@ -522,7 +518,10 @@ fn check_range_switch<'tcx>(
                     .to_string()
             });
             let end = Sugg::hir_with_applicability(cx, y, "<y>", &mut app).maybe_paren();
-            match span.with_source_text(cx, |src| src.starts_with('(') && src.ends_with(')')) {
+            match span
+                .get_source_text(cx)
+                .map(|src| src.starts_with('(') && src.ends_with(')'))
+            {
                 Some(true) => {
                     diag.span_suggestion(span, "use", format!("({start}{operator}{end})"), app);
                 },
