@@ -25,11 +25,14 @@ fn main() {
 
     const B: bool = true;
     assert!(B);
+    //~^ assertions_on_constants
 
     const C: bool = false;
     assert!(C);
+    //~^ assertions_on_constants
 
     assert!(C, "C message");
+    //~^ assertions_on_constants
 
     debug_assert!(true);
     //~^ assertions_on_constants
@@ -39,8 +42,8 @@ fn main() {
     assert_const!(3);
     assert_const!(-1);
 
-    // Don't lint if based on `cfg!(..)`:
     assert!(cfg!(feature = "hey") || cfg!(not(feature = "asdf")));
+    //~^ assertions_on_constants
 
     let flag: bool = cfg!(not(feature = "asdf"));
     assert!(flag);
@@ -59,9 +62,25 @@ fn main() {
     const _: () = assert!(N.is_power_of_two());
 }
 
+const C: bool = true;
+
 const _: () = {
     assert!(true);
     //~^ assertions_on_constants
 
     assert!(8 == (7 + 1));
+    //~^ assertions_on_constants
+
+    assert!(C);
 };
+
+#[clippy::msrv = "1.57"]
+fn _f1() {
+    assert!(C);
+    //~^ assertions_on_constants
+}
+
+#[clippy::msrv = "1.56"]
+fn _f2() {
+    assert!(C);
+}
