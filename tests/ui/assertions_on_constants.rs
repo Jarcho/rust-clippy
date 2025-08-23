@@ -25,14 +25,11 @@ fn main() {
 
     const B: bool = true;
     assert!(B);
-    //~^ assertions_on_constants
 
     const C: bool = false;
     assert!(C);
-    //~^ assertions_on_constants
 
     assert!(C, "C message");
-    //~^ assertions_on_constants
 
     debug_assert!(true);
     //~^ assertions_on_constants

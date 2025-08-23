@@ -24,8 +24,9 @@ pub(super) fn check<'tcx>(
     if let Some(id) = typeck_results.type_dependent_def_id(expr.hir_id)
         && (cx.tcx.is_diagnostic_item(sym::cmp_ord_min, id) || cx.tcx.is_diagnostic_item(sym::cmp_ord_max, id))
     {
-        if let Some((left, ConstantSource::Local | ConstantSource::CoreConstant)) = ecx.eval_with_source(recv)
-            && let Some((right, ConstantSource::Local | ConstantSource::CoreConstant)) = ecx.eval_with_source(arg)
+        let ctxt = expr.span.ctxt();
+        if let Some((left, ConstantSource::Local | ConstantSource::CoreConstant)) = ecx.eval_with_source(recv, ctxt)
+            && let Some((right, ConstantSource::Local | ConstantSource::CoreConstant)) = ecx.eval_with_source(arg, ctxt)
         {
             let Some(ord) = Constant::partial_cmp(cx.tcx, typeck_results.expr_ty(recv), &left, &right) else {
                 return;

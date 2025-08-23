@@ -40,32 +40,8 @@ LL |     assert!(false, "{}", msg.to_uppercase());
    |
    = help: use `panic!(..)` or `unreachable!(..)`
 
-error: `assert!(true)` will be optimized out by the compiler
-  --> tests/ui/assertions_on_constants.rs:27:5
-   |
-LL |     assert!(B);
-   |     ^^^^^^^^^^
-   |
-   = help: remove it
-
-error: `assert!(false)` should probably be replaced
-  --> tests/ui/assertions_on_constants.rs:31:5
-   |
-LL |     assert!(C);
-   |     ^^^^^^^^^^
-   |
-   = help: use `panic!()` or `unreachable!()`
-
-error: `assert!(false, ..)` should probably be replaced
-  --> tests/ui/assertions_on_constants.rs:34:5
-   |
-LL |     assert!(C, "C message");
-   |     ^^^^^^^^^^^^^^^^^^^^^^^
-   |
-   = help: use `panic!(..)` or `unreachable!(..)`
-
 error: `debug_assert!(true)` will be optimized out by the compiler
-  --> tests/ui/assertions_on_constants.rs:37:5
+  --> tests/ui/assertions_on_constants.rs:34:5
    |
 LL |     debug_assert!(true);
    |     ^^^^^^^^^^^^^^^^^^^
@@ -73,7 +49,7 @@ LL |     debug_assert!(true);
    = help: remove it
 
 error: `assert!(true)` will be optimized out by the compiler
-  --> tests/ui/assertions_on_constants.rs:54:19
+  --> tests/ui/assertions_on_constants.rs:51:19
    |
 LL |     const _: () = assert!(true);
    |                   ^^^^^^^^^^^^^
@@ -81,7 +57,7 @@ LL |     const _: () = assert!(true);
    = help: remove it
 
 error: `assert!(true)` will be optimized out by the compiler
-  --> tests/ui/assertions_on_constants.rs:57:5
+  --> tests/ui/assertions_on_constants.rs:54:5
    |
 LL |     assert!(8 == (7 + 1));
    |     ^^^^^^^^^^^^^^^^^^^^^
@@ -89,12 +65,12 @@ LL |     assert!(8 == (7 + 1));
    = help: remove it
 
 error: `assert!(true)` will be optimized out by the compiler
-  --> tests/ui/assertions_on_constants.rs:66:5
+  --> tests/ui/assertions_on_constants.rs:63:5
    |
 LL |     assert!(true);
    |     ^^^^^^^^^^^^^
    |
    = help: remove it
 
-error: aborting due to 12 previous errors
+error: aborting due to 9 previous errors
 

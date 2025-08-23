@@ -43,7 +43,7 @@ impl<'tcx> LateLintPass<'tcx> for AssertionsOnConstants {
         let Some((condition, panic_expn)) = find_assert_args(cx, e, macro_call.expn) else {
             return;
         };
-        let Some(Constant::Bool(val)) = ConstEvalCtxt::new(cx).eval(condition) else {
+        let Some(Constant::Bool(val)) = ConstEvalCtxt::new(cx).eval_local(condition, macro_call.span.ctxt()) else {
             return;
         };
 
