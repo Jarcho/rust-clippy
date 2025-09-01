@@ -1,9 +1,9 @@
 use clippy_utils::diagnostics::span_lint_and_help;
 use clippy_utils::is_from_proc_macro;
+use clippy_utils::paths::{MaybeRes, MaybeResPath};
 use clippy_utils::ty::needs_ordered_drop;
 use rustc_ast::Mutability;
-use rustc_hir::def::Res;
-use rustc_hir::{BindingMode, ByRef, ExprKind, HirId, LetStmt, Node, Pat, PatKind, QPath};
+use rustc_hir::{BindingMode, ByRef, HirId, LetStmt, Node, Pat, PatKind};
 use rustc_hir_typeck::expr_use_visitor::PlaceBase;
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_middle::ty::UpvarCapture;
@@ -54,12 +54,12 @@ impl<'tcx> LateLintPass<'tcx> for RedundantLocals {
             && local.ty.is_none()
             // the expression is a resolved path
             && let Some(expr) = local.init
-            && let ExprKind::Path(qpath @ QPath::Resolved(None, path)) = expr.kind
+            && let (None, Some(path)) = expr.opt_res_path()
             // the path is a single segment equal to the local's name
             && let [last_segment] = path.segments
             && last_segment.ident == ident
             // resolve the path to its defining binding pattern
-            && let Res::Local(binding_id) = cx.qpath_res(&qpath, expr.hir_id)
+            && let Some(binding_id) = path.res_local_id()
             && let Node::Pat(binding_pat) = cx.tcx.hir_node(binding_id)
             // the previous binding has the same mutability
             && find_binding(binding_pat, ident).is_some_and(|bind| bind.1 == mutability)

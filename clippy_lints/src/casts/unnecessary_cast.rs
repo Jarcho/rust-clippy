@@ -1,5 +1,6 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::numeric_literal::NumericLiteral;
+use clippy_utils::paths::MaybeRes;
 use clippy_utils::source::{SpanRangeExt, snippet_opt};
 use clippy_utils::visitors::{Visitable, for_each_expr_without_closures};
 use clippy_utils::{get_parent_expr, is_hir_ty_cfg_dependant, is_ty_alias, path_to_local};
@@ -87,8 +88,7 @@ pub(super) fn check<'tcx>(
 
     // skip cast to non-primitive type
     if let ExprKind::Cast(_, cast_to) = expr.kind
-        && let TyKind::Path(QPath::Resolved(_, path)) = &cast_to.kind
-        && let Res::PrimTy(_) = path.res
+        && matches!(cast_to.res(), Res::PrimTy(_))
     {
     } else {
         return false;
@@ -167,7 +167,7 @@ pub(super) fn check<'tcx>(
                 sym::assert_ne_macro,
                 sym::debug_assert_ne_macro,
             ];
-            matches!(expr.span.ctxt().outer_expn_data().macro_def_id, Some(def_id) if 
+            matches!(expr.span.ctxt().outer_expn_data().macro_def_id, Some(def_id) if
                 cx.tcx.get_diagnostic_name(def_id).is_some_and(|sym| ALLOWED_MACROS.contains(&sym)))
         }
 

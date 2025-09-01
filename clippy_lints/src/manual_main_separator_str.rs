@@ -1,10 +1,11 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::paths::MaybeResPath;
 use clippy_utils::{is_trait_method, peel_hir_expr_refs};
 use rustc_errors::Applicability;
 use rustc_hir::def::{DefKind, Res};
-use rustc_hir::{Expr, ExprKind, Mutability, QPath};
+use rustc_hir::{Expr, ExprKind, Mutability};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty;
 use rustc_session::impl_lint_pass;
@@ -50,10 +51,9 @@ impl LateLintPass<'_> for ManualMainSeparatorStr {
         let (target, _) = peel_hir_expr_refs(expr);
         if let ExprKind::MethodCall(path, receiver, &[], _) = target.kind
             && path.ident.name == sym::to_string
-            && let ExprKind::Path(QPath::Resolved(None, path)) = receiver.kind
-            && let Res::Def(DefKind::Const, receiver_def_id) = path.res
-            && is_trait_method(cx, target, sym::ToString)
+            && let Res::Def(DefKind::Const, receiver_def_id) = *receiver.typeless_res()
             && cx.tcx.is_diagnostic_item(sym::path_main_separator, receiver_def_id)
+            && is_trait_method(cx, target, sym::ToString)
             && let ty::Ref(_, ty, Mutability::Not) = cx.typeck_results().expr_ty_adjusted(expr).kind()
             && ty.is_str()
             && self.msrv.meets(cx, msrvs::PATH_MAIN_SEPARATOR_STR)

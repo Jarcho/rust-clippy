@@ -1,7 +1,8 @@
 use clippy_utils::diagnostics::span_lint_and_help;
+use clippy_utils::paths::MaybeRes;
 use clippy_utils::source::snippet;
 use clippy_utils::{is_entrypoint_fn, is_no_std_crate};
-use rustc_hir::{Expr, ExprKind, QPath};
+use rustc_hir::{Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 
@@ -43,8 +44,7 @@ impl LateLintPass<'_> for MainRecursion {
         }
 
         if let ExprKind::Call(func, []) = &expr.kind
-            && let ExprKind::Path(QPath::Resolved(_, path)) = &func.kind
-            && let Some(def_id) = path.res.opt_def_id()
+            && let Some(def_id) = func.res_def_id()
             && is_entrypoint_fn(cx, def_id)
         {
             span_lint_and_help(

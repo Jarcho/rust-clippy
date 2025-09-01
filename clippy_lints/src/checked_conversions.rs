@@ -1,6 +1,7 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::paths::MaybeResPath;
 use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::{SpanlessEq, is_in_const_context, is_integer_literal, sym};
 use rustc_errors::Applicability;
@@ -277,7 +278,7 @@ fn get_types_from_cast(
 fn get_implementing_type(path: &QPath<'_>, candidates: &[Symbol], function: Symbol) -> Option<Symbol> {
     if let QPath::TypeRelative(ty, path) = &path
         && path.ident.name == function
-        && let TyKind::Path(QPath::Resolved(None, tp)) = &ty.kind
+        && let (None, Some(tp)) = ty.opt_res_path()
         && let [int] = tp.segments
     {
         candidates.iter().find(|c| int.ident.name == **c).copied()

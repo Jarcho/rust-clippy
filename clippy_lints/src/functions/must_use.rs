@@ -1,8 +1,8 @@
+use clippy_utils::paths::MaybeRes;
 use hir::FnSig;
 use rustc_errors::Applicability;
-use rustc_hir::def::Res;
 use rustc_hir::def_id::DefIdSet;
-use rustc_hir::{self as hir, Attribute, QPath};
+use rustc_hir::{self as hir, Attribute};
 use rustc_infer::infer::TyCtxtInferExt;
 use rustc_lint::{LateContext, LintContext};
 use rustc_middle::ty::{self, Ty};
@@ -274,8 +274,7 @@ fn is_mutated_static(e: &hir::Expr<'_>) -> bool {
     use hir::ExprKind::{Field, Index, Path};
 
     match e.kind {
-        Path(QPath::Resolved(_, path)) => !matches!(path.res, Res::Local(_)),
-        Path(_) => true,
+        Path(ref qpath) => qpath.res_local_id().is_none(),
         Field(inner, _) | Index(inner, _, _) => is_mutated_static(inner),
         _ => false,
     }

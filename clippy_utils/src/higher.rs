@@ -3,6 +3,7 @@
 #![deny(clippy::missing_docs_in_private_items)]
 
 use crate::consts::{ConstEvalCtxt, Constant};
+use crate::paths::MaybeRes;
 use crate::ty::is_type_diagnostic_item;
 use crate::{is_expn_of, sym};
 
@@ -460,8 +461,8 @@ pub fn get_vec_init_kind<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) -
                     };
                 }
             },
-            ExprKind::Path(QPath::Resolved(_, path))
-                if cx.tcx.is_diagnostic_item(sym::default_fn, path.res.opt_def_id()?)
+            ExprKind::Path(ref qpath)
+                if qpath.is_res_diag_item(cx.tcx, sym::default_fn)
                     && is_type_diagnostic_item(cx, cx.typeck_results().expr_ty(expr), sym::Vec) =>
             {
                 return Some(VecInitKind::Default);

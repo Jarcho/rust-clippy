@@ -1,6 +1,6 @@
 use crate::map_unit_fn::OPTION_MAP_UNIT_FN;
 use crate::matches::MATCH_AS_REF;
-use clippy_utils::paths::PathRes;
+use clippy_utils::paths::{MaybeRes, PathRes};
 use clippy_utils::source::{snippet_with_applicability, snippet_with_context};
 use clippy_utils::sugg::Sugg;
 use clippy_utils::ty::{is_copy, is_type_diagnostic_item, peel_mid_ty_refs_is_mutable, type_is_unsafe_function};
@@ -11,8 +11,7 @@ use clippy_utils::{
 use rustc_ast::util::parser::ExprPrecedence;
 use rustc_errors::Applicability;
 use rustc_hir::LangItem::{OptionNone, OptionSome};
-use rustc_hir::def::Res;
-use rustc_hir::{BindingMode, Expr, ExprKind, HirId, Mutability, Pat, PatKind, Path, QPath};
+use rustc_hir::{BindingMode, Expr, ExprKind, HirId, Mutability, Pat, PatKind};
 use rustc_lint::LateContext;
 use rustc_span::{SyntaxContext, sym};
 
@@ -98,8 +97,8 @@ where
                     ExprKind::Field(e, _) | ExprKind::AddrOf(_, _, e) => Some(e),
                     _ => None,
                 });
-                if let ExprKind::Path(QPath::Resolved(None, Path { res: Res::Local(l), .. })) = e.kind {
-                    match captures.get(l) {
+                if let Some(l) = e.res_local_id() {
+                    match captures.get(&l) {
                         Some(CaptureKind::Value | CaptureKind::Use | CaptureKind::Ref(Mutability::Mut)) => return None,
                         Some(CaptureKind::Ref(Mutability::Not)) if binding_ref_mutability == Mutability::Mut => {
                             return None;

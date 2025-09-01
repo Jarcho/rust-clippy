@@ -1,5 +1,6 @@
 use crate::consts::ConstEvalCtxt;
 use crate::macros::macro_backtrace;
+use crate::paths::MaybeRes;
 use crate::source::{SpanRange, SpanRangeExt, walk_span_to_context};
 use crate::tokenize_with_text;
 use rustc_ast::ast;
@@ -1355,11 +1356,7 @@ pub fn hash_stmt(cx: &LateContext<'_>, s: &Stmt<'_>) -> u64 {
 }
 
 pub fn is_bool(ty: &Ty<'_>) -> bool {
-    if let TyKind::Path(QPath::Resolved(_, path)) = ty.kind {
-        matches!(path.res, Res::PrimTy(PrimTy::Bool))
-    } else {
-        false
-    }
+    matches!(ty.res(), Res::PrimTy(PrimTy::Bool))
 }
 
 pub fn hash_expr(cx: &LateContext<'_>, e: &Expr<'_>) -> u64 {

@@ -1,5 +1,6 @@
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_and_then};
 use clippy_utils::macros::{is_panic, matching_root_macro_call, root_macro_call};
+use clippy_utils::paths::MaybeRes;
 use clippy_utils::source::{indent_of, reindent_multiline, snippet};
 use clippy_utils::ty::is_type_diagnostic_item;
 use clippy_utils::{SpanlessEq, higher, is_trait_method, path_to_local_id, peel_blocks, sym};
@@ -164,11 +165,10 @@ impl<'tcx> OffendingFilterExpr<'tcx> {
             },
             OffendingFilterExpr::Matches { variant_def_id } => {
                 let expr_uses_local = |pat: &Pat<'_>, expr: &Expr<'_>| {
-                    if let PatKind::TupleStruct(QPath::Resolved(_, path), [subpat], _) = pat.kind
+                    if let PatKind::TupleStruct(ref qpath, [subpat], _) = pat.kind
                         && let PatKind::Binding(_, local_id, ident, _) = subpat.kind
+                        && qpath.is_res_item(variant_def_id)
                         && path_to_local_id(expr.peel_blocks(), local_id)
-                        && let Some(local_variant_def_id) = path.res.opt_def_id()
-                        && local_variant_def_id == variant_def_id
                     {
                         Some((ident, pat.span))
                     } else {
@@ -248,8 +248,8 @@ impl<'tcx> OffendingFilterExpr<'tcx> {
             // we know for a fact that the wildcard pattern is the second arm
             && let ExprKind::Match(scrutinee, [arm, _], _) = expr.kind
             && path_to_local_id(scrutinee, filter_param_id)
-            && let PatKind::TupleStruct(QPath::Resolved(_, path), ..) = arm.pat.kind
-            && let Some(variant_def_id) = path.res.opt_def_id()
+            && let PatKind::TupleStruct(ref qpath, ..) = arm.pat.kind
+            && let Some(variant_def_id) = qpath.res_def_id()
         {
             Some(OffendingFilterExpr::Matches { variant_def_id })
         } else {

@@ -2,14 +2,13 @@ use clippy_utils::consts::ConstEvalCtxt;
 use clippy_utils::source::{SpanRangeExt as _, indent_of, reindent_multiline};
 use rustc_ast::{BindingMode, ByRef};
 use rustc_errors::Applicability;
-use rustc_hir::def::Res;
-use rustc_hir::{Arm, Expr, ExprKind, HirId, LangItem, Pat, PatExpr, PatExprKind, PatKind, QPath};
+use rustc_hir::{Arm, Expr, HirId, LangItem, Pat, PatKind};
 use rustc_lint::{LateContext, LintContext};
 use rustc_middle::ty::{GenericArgKind, Ty};
 use rustc_span::sym;
 
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::paths::PathRes;
+use clippy_utils::paths::{MaybeRes, PathRes};
 use clippy_utils::sugg::Sugg;
 use clippy_utils::ty::{expr_type_is_certain, get_type_diagnostic_name, implements_trait};
 use clippy_utils::{is_default_equivalent, is_lint_allowed, peel_blocks, span_contains_comment};
@@ -17,14 +16,11 @@ use clippy_utils::{is_default_equivalent, is_lint_allowed, peel_blocks, span_con
 use super::{MANUAL_UNWRAP_OR, MANUAL_UNWRAP_OR_DEFAULT};
 
 fn get_some(cx: &LateContext<'_>, pat: &Pat<'_>) -> Option<HirId> {
-    if let PatKind::TupleStruct(QPath::Resolved(_, path), &[pat], _) = pat.kind
+    if let PatKind::TupleStruct(ref qpath, &[pat], _) = pat.kind
         && let PatKind::Binding(BindingMode(ByRef::No, _), pat_id, _, _) = pat.kind
-        && let Some(def_id) = path.res.opt_def_id()
-        // Since it comes from a pattern binding, we need to get the parent to actually match
-        // against it.
-        && let Some(def_id) = cx.tcx.opt_parent(def_id)
-        && let Some(lang_item) = cx.tcx.lang_items().from_def_id(def_id)
-        && matches!(lang_item, LangItem::OptionSome | LangItem::ResultOk)
+        && let Some(def_id) = qpath.res_ctor_variant_id(cx.tcx)
+        && (cx.tcx.lang_items().option_some_variant() == Some(def_id)
+            || cx.tcx.lang_items().result_ok_variant() == Some(def_id))
     {
         Some(pat_id)
     } else {
@@ -33,27 +29,12 @@ fn get_some(cx: &LateContext<'_>, pat: &Pat<'_>) -> Option<HirId> {
 }
 
 fn get_none<'tcx>(cx: &LateContext<'_>, arm: &Arm<'tcx>) -> Option<&'tcx Expr<'tcx>> {
-    if let PatKind::Expr(PatExpr { kind: PatExprKind::Path(QPath::Resolved(_, path)), .. }) = arm.pat.kind
-        && let Some(def_id) = path.res.opt_def_id()
-        // Since it comes from a pattern binding, we need to get the parent to actually match
-        // against it.
-        && let Some(def_id) = cx.tcx.opt_parent(def_id)
-        && cx.tcx.lang_items().get(LangItem::OptionNone) == Some(def_id)
-    {
-        Some(arm.body)
-    } else if let PatKind::TupleStruct(QPath::Resolved(_, path), _, _)= arm.pat.kind
-        && let Some(def_id) = path.res.opt_def_id()
-        // Since it comes from a pattern binding, we need to get the parent to actually match
-        // against it.
-        && let Some(def_id) = cx.tcx.opt_parent(def_id)
-        && cx.tcx.lang_items().get(LangItem::ResultErr) == Some(def_id)
-    {
-        Some(arm.body)
-    } else if let PatKind::Wild = arm.pat.kind {
+    match arm.pat.kind {
+        PatKind::Expr(e) if e.is_res_lang_ctor(cx.tcx, LangItem::OptionNone) => Some(arm.body),
+        PatKind::TupleStruct(ref qpath, _, _) if qpath.is_res_lang_ctor(cx.tcx, LangItem::ResultErr) => Some(arm.body),
         // We consider that the `Some` check will filter it out if it's not right.
-        Some(arm.body)
-    } else {
-        None
+        PatKind::Wild => Some(arm.body),
+        _ => None,
     }
 }
 
@@ -91,10 +72,7 @@ fn handle(
 
     let expr_type = cx.typeck_results().expr_ty(expr);
     // We check that the `Some(x) => x` doesn't do anything apart "returning" the value in `Some`.
-    if let ExprKind::Path(QPath::Resolved(_, path)) = peel_blocks(body_some).kind
-        && let Res::Local(local_id) = path.res
-        && local_id == binding_id
-    {
+    if peel_blocks(body_some).is_res_local(binding_id) {
         // Machine applicable only if there are no comments present
         let mut applicability = if span_contains_comment(cx.sess().source_map(), expr.span) {
             Applicability::MaybeIncorrect

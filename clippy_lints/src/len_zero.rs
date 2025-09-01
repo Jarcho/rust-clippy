@@ -1,4 +1,5 @@
 use clippy_utils::diagnostics::{span_lint, span_lint_and_sugg, span_lint_and_then};
+use clippy_utils::paths::MaybeResPath;
 use clippy_utils::source::{SpanRangeExt, snippet_with_context};
 use clippy_utils::sugg::{Sugg, has_enclosing_paren};
 use clippy_utils::ty::implements_trait;
@@ -11,8 +12,7 @@ use rustc_hir::def::Res;
 use rustc_hir::def_id::{DefId, DefIdSet};
 use rustc_hir::{
     BinOpKind, Expr, ExprKind, FnRetTy, GenericArg, GenericBound, HirId, ImplItem, ImplItemKind, ImplicitSelfKind,
-    Item, ItemKind, Mutability, Node, OpaqueTyOrigin, PatExprKind, PatKind, PathSegment, PrimTy, QPath, TraitItemId,
-    TyKind,
+    Item, ItemKind, Mutability, Node, OpaqueTyOrigin, PatExprKind, PatKind, PathSegment, PrimTy, TraitItemId, TyKind,
 };
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::{self, FnSig, Ty};
@@ -325,7 +325,7 @@ fn extract_future_output<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>) -> Option<&
         && let Some(generic_args) = segment.args
         && let [constraint] = generic_args.constraints
         && let Some(ty) = constraint.ty()
-        && let TyKind::Path(QPath::Resolved(_, path)) = ty.kind
+        && let (_, Some(path)) = ty.opt_res_path()
         && let [segment] = path.segments
     {
         return Some(segment);
@@ -336,8 +336,8 @@ fn extract_future_output<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>) -> Option<&
 
 fn is_first_generic_integral<'tcx>(segment: &'tcx PathSegment<'tcx>) -> bool {
     if let Some(generic_args) = segment.args
-        && let [GenericArg::Type(ty), ..] = &generic_args.args
-        && let TyKind::Path(QPath::Resolved(_, path)) = ty.kind
+        && let [GenericArg::Type(ty), ..] = *generic_args.args
+        && let (_, Some(path)) = ty.opt_res_path()
         && let [segment, ..] = &path.segments
         && matches!(segment.res, Res::PrimTy(PrimTy::Uint(_) | PrimTy::Int(_)))
     {

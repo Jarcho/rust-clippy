@@ -1,12 +1,13 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::paths::{MaybeRes, MaybeResPath};
 use clippy_utils::source::indent_of;
 use clippy_utils::{is_default_equivalent, peel_blocks};
 use rustc_errors::Applicability;
 use rustc_hir::def::{CtorKind, CtorOf, DefKind, Res};
 use rustc_hir::{
-    self as hir, Body, Expr, ExprKind, GenericArg, Impl, ImplItemKind, Item, ItemKind, Node, PathSegment, QPath, TyKind,
+    self as hir, Body, Expr, ExprKind, GenericArg, Impl, ImplItemKind, Item, ItemKind, Node, QPath, TyKind,
 };
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::adjustment::{Adjust, PointerCoercion};
@@ -69,11 +70,7 @@ impl DerivableImpls {
 impl_lint_pass!(DerivableImpls => [DERIVABLE_IMPLS]);
 
 fn is_path_self(e: &Expr<'_>) -> bool {
-    if let ExprKind::Path(QPath::Resolved(_, p)) = e.kind {
-        matches!(p.res, Res::SelfCtor(..) | Res::Def(DefKind::Ctor(..), _))
-    } else {
-        false
-    }
+    matches!(e.res(), Res::SelfCtor(..) | Res::Def(DefKind::Ctor(..), _))
 }
 
 fn contains_trait_object(ty: Ty<'_>) -> bool {
@@ -102,10 +99,10 @@ fn check_struct<'tcx>(
     typeck_results: &'tcx TypeckResults<'tcx>,
     is_const: bool,
 ) {
-    if let TyKind::Path(QPath::Resolved(_, p)) = self_ty.kind
-        && let Some(PathSegment { args, .. }) = p.segments.last()
+    if let (_, Some(p)) = self_ty.opt_res_path()
+        && let [.., last] = p.segments
     {
-        let args = args.map(|a| a.args).unwrap_or(&[]);
+        let args = last.args.map_or([].as_slice(), |a| a.args);
 
         // ty_args contains the generic parameters of the type declaration, while args contains the
         // arguments used at instantiation time. If both len are not equal, it means that some

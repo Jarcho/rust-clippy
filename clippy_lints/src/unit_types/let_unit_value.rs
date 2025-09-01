@@ -1,5 +1,6 @@
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::macros::{FormatArgsStorage, find_format_arg_expr, is_format_macro, root_macro_call_first_node};
+use clippy_utils::paths::MaybeRes;
 use clippy_utils::source::{indent_of, reindent_multiline, snippet_with_context};
 use clippy_utils::visitors::{for_each_local_assignment, for_each_value_source};
 use core::ops::ControlFlow;
@@ -7,7 +8,7 @@ use rustc_ast::{FormatArgs, FormatArgumentKind};
 use rustc_errors::Applicability;
 use rustc_hir::def::{DefKind, Res};
 use rustc_hir::intravisit::{Visitor, walk_body, walk_expr};
-use rustc_hir::{Expr, ExprKind, HirId, HirIdSet, LetStmt, MatchSource, Node, PatKind, QPath, TyKind};
+use rustc_hir::{Expr, ExprKind, HirId, HirIdSet, LetStmt, MatchSource, Node, PatKind, TyKind};
 use rustc_lint::{LateContext, LintContext};
 use rustc_middle::ty;
 use rustc_span::Span;
@@ -165,10 +166,7 @@ impl<'tcx> Visitor<'tcx> for UnitVariableCollector<'_, 'tcx> {
             return;
         }
 
-        if let ExprKind::Path(QPath::Resolved(None, path)) = ex.kind
-            && let Res::Local(id) = path.res
-            && id == self.id
-        {
+        if ex.is_res_local(self.id) {
             if let Some(macro_call) = self.macro_call
                 && macro_call.arguments.all_args().iter().any(|arg| {
                     matches!(arg.kind, FormatArgumentKind::Captured(_)) && find_format_arg_expr(ex, arg).is_some()
@@ -176,7 +174,7 @@ impl<'tcx> Visitor<'tcx> for UnitVariableCollector<'_, 'tcx> {
             {
                 self.spans.push(MaybeInFormatCapture::Yes);
             } else {
-                self.spans.push(MaybeInFormatCapture::No(path.span));
+                self.spans.push(MaybeInFormatCapture::No(ex.span));
             }
         }
 
@@ -268,8 +266,8 @@ fn needs_inferred_result_ty(
             Some(id) => (id, Some(receiver), args),
             None => return false,
         },
-        ExprKind::Path(QPath::Resolved(None, path)) => {
-            if let Res::Local(id) = path.res
+        ExprKind::Path(ref qpath) => {
+            if let Some(id) = qpath.res_local_id()
                 && seen_locals.insert(id)
             {
                 locals_to_check.push(id);

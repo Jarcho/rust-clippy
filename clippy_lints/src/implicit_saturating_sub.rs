@@ -1,6 +1,7 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_and_then};
 use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::paths::MaybeResPath;
 use clippy_utils::sugg::{Sugg, make_binop};
 use clippy_utils::{
     SpanlessEq, eq_expr_value, higher, is_in_const_context, is_integer_literal, peel_blocks, peel_blocks_with_stmt, sym,
@@ -300,8 +301,11 @@ fn check_with_condition<'tcx>(
         && let Some(target) = subtracts_one(cx, then)
 
         // Extracting out the variable name
-        && let ExprKind::Path(QPath::Resolved(_, ares_path)) = target.kind
+        && let (_, Some(ares_path)) = target.opt_res_path()
+        && let [seg, ..] = ares_path.segments
     {
+        let var_name = seg.ident.name;
+
         // Handle symmetric conditions in the if statement
         let (cond_var, cond_num_val) = if SpanlessEq::new(cx).eq_expr(cond_left, target) {
             if BinOpKind::Gt == cond_op || BinOpKind::Ne == cond_op {
@@ -324,8 +328,6 @@ fn check_with_condition<'tcx>(
             return;
         }
 
-        // Get the variable name
-        let var_name = ares_path.segments[0].ident.name;
         match cond_num_val.kind {
             ExprKind::Lit(cond_lit) => {
                 // Check if the constant is zero

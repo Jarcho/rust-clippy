@@ -1,9 +1,10 @@
 use clippy_utils::diagnostics::{span_lint, span_lint_and_sugg};
 use clippy_utils::macros::{FormatArgsStorage, find_format_arg_expr, is_format_macro, root_macro_call_first_node};
+use clippy_utils::paths::MaybeResPath;
 use clippy_utils::{get_parent_as_impl, is_diag_trait_item, path_to_local, peel_ref_operators, sym};
 use rustc_ast::{FormatArgsPiece, FormatTrait};
 use rustc_errors::Applicability;
-use rustc_hir::{Expr, ExprKind, Impl, ImplItem, ImplItemKind, QPath};
+use rustc_hir::{Expr, ExprKind, Impl, ImplItem, ImplItemKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::Symbol;
@@ -160,7 +161,7 @@ impl FormatImplExpr<'_, '_> {
             && let Some(expr_def_id) = self.cx.typeck_results().type_dependent_def_id(self.expr.hir_id)
             && is_diag_trait_item(self.cx, expr_def_id, sym::ToString)
             // Is the method is called on self
-            && let ExprKind::Path(QPath::Resolved(_, path)) = self_arg.kind
+            && let (_, Some(path)) = self_arg.opt_res_path()
             && let [segment] = path.segments
             && segment.ident.name == kw::SelfLower
         {

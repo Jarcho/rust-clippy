@@ -1,5 +1,6 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::paths::MaybeRes;
 use clippy_utils::source::{snippet, snippet_with_applicability};
 use clippy_utils::sugg::Sugg;
 use clippy_utils::ty::is_type_diagnostic_item;
@@ -7,7 +8,7 @@ use clippy_utils::{get_parent_expr, sym};
 use rustc_ast::LitKind;
 use rustc_errors::Applicability;
 use rustc_hir::def::{CtorKind, CtorOf, DefKind, Res};
-use rustc_hir::{BinOpKind, Closure, Expr, ExprKind, QPath};
+use rustc_hir::{BinOpKind, Closure, Expr, ExprKind};
 use rustc_lint::LateContext;
 use rustc_middle::ty;
 use rustc_span::{Span, Symbol};
@@ -201,8 +202,7 @@ pub(super) fn check_map(cx: &LateContext<'_>, expr: &Expr<'_>) {
                 if let ExprKind::Call(call, [arg]) = expr1.kind
                     && let ExprKind::Lit(lit) = arg.kind
                     && let LitKind::Bool(bool_cst) = lit.node
-                    && let ExprKind::Path(QPath::Resolved(_, path)) = call.kind
-                    && let Res::Def(DefKind::Ctor(CtorOf::Variant, CtorKind::Fn), _) = path.res
+                    && let Res::Def(DefKind::Ctor(CtorOf::Variant, CtorKind::Fn), _) = call.res()
                     && let ty = cx.typeck_results().expr_ty(expr1)
                     && let ty::Adt(adt, args) = ty.kind()
                     && cx.tcx.is_diagnostic_item(flavor.symbol(), adt.did())

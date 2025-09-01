@@ -2,6 +2,7 @@ use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::is_from_proc_macro;
 use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::paths::MaybeResPath;
 use clippy_utils::source::SpanRangeExt;
 use hir::def_id::DefId;
 use rustc_errors::Applicability;
@@ -104,8 +105,7 @@ impl<'tcx> LateLintPass<'tcx> for LegacyNumericConstants {
 
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx rustc_hir::Expr<'tcx>) {
         // `std::<integer>::<CONST>` check
-        let (sugg, msg) = if let ExprKind::Path(qpath) = &expr.kind
-            && let QPath::Resolved(None, path) = qpath
+        let (sugg, msg) = if let (None, Some(path)) = expr.opt_res_path()
             && let Some(def_id) = path.res.opt_def_id()
             && is_numeric_const(cx, def_id)
             && let [.., mod_name, name] = &*cx.get_def_path(def_id)

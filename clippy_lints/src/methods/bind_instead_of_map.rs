@@ -1,12 +1,12 @@
 use super::{BIND_INSTEAD_OF_MAP, contains_return};
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_and_then};
+use clippy_utils::paths::MaybeRes;
 use clippy_utils::peel_blocks;
 use clippy_utils::source::{snippet, snippet_with_context};
 use clippy_utils::visitors::find_all_ret_expressions;
 use rustc_errors::Applicability;
 use rustc_hir as hir;
-use rustc_hir::def::{CtorKind, CtorOf, DefKind, Res};
-use rustc_hir::{LangItem, QPath};
+use rustc_hir::LangItem;
 use rustc_lint::LateContext;
 use rustc_span::Span;
 
@@ -91,8 +91,7 @@ impl BindInsteadOfMap {
         closure_args_span: Span,
     ) -> bool {
         if let hir::ExprKind::Call(some_expr, [inner_expr]) = closure_expr.kind
-            && let hir::ExprKind::Path(QPath::Resolved(_, path)) = some_expr.kind
-            && self.is_variant(cx, path.res)
+            && some_expr.is_res_lang_ctor(cx.tcx, self.variant_lang_item)
             && !contains_return(inner_expr)
             && let Some(msg) = self.lint_msg(cx)
         {
@@ -117,8 +116,7 @@ impl BindInsteadOfMap {
         let can_sugg: bool = find_all_ret_expressions(cx, closure_expr, |ret_expr| {
             if !ret_expr.span.from_expansion()
                 && let hir::ExprKind::Call(func_path, [arg]) = ret_expr.kind
-                && let hir::ExprKind::Path(QPath::Resolved(_, path)) = func_path.kind
-                && self.is_variant(cx, path.res)
+                && func_path.is_res_lang_ctor(cx.tcx, self.variant_lang_item)
                 && !contains_return(arg)
             {
                 suggs.push((ret_expr.span, arg.span.source_callsite()));
@@ -173,7 +171,7 @@ impl BindInsteadOfMap {
                 }
             },
             // `_.and_then(Some)` case, which is no-op.
-            hir::ExprKind::Path(QPath::Resolved(_, path)) if self.is_variant(cx, path.res) => {
+            hir::ExprKind::Path(ref qpath) if qpath.is_res_lang_ctor(cx.tcx, self.variant_lang_item) => {
                 if let Some(msg) = self.no_op_msg(cx) {
                     span_lint_and_sugg(
                         cx,
@@ -189,14 +187,5 @@ impl BindInsteadOfMap {
             },
             _ => false,
         }
-    }
-
-    fn is_variant(&self, cx: &LateContext<'_>, res: Res) -> bool {
-        if let Res::Def(DefKind::Ctor(CtorOf::Variant, CtorKind::Fn), id) = res
-            && let Some(variant_id) = cx.tcx.lang_items().get(self.variant_lang_item)
-        {
-            return cx.tcx.parent(id) == variant_id;
-        }
-        false
     }
 }

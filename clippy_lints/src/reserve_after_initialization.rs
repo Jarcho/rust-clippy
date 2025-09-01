@@ -1,10 +1,10 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::higher::{VecInitKind, get_vec_init_kind};
+use clippy_utils::paths::MaybeRes;
 use clippy_utils::source::snippet;
 use clippy_utils::{is_from_proc_macro, path_to_local_id, sym};
 use rustc_errors::Applicability;
-use rustc_hir::def::Res;
-use rustc_hir::{BindingMode, Block, Expr, ExprKind, HirId, LetStmt, PatKind, QPath, Stmt, StmtKind};
+use rustc_hir::{BindingMode, Block, Expr, ExprKind, HirId, LetStmt, PatKind, Stmt, StmtKind};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::impl_lint_pass;
 use rustc_span::Span;
@@ -98,8 +98,7 @@ impl<'tcx> LateLintPass<'tcx> for ReserveAfterInitialization {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if self.searcher.is_none()
             && let ExprKind::Assign(left, right, _) = expr.kind
-            && let ExprKind::Path(QPath::Resolved(None, path)) = left.kind
-            && let Res::Local(id) = path.res
+            && let Some(id) = left.res_local_id()
             && !expr.span.in_external_macro(cx.sess().source_map())
             && let Some(init) = get_vec_init_kind(cx, right)
             && !matches!(

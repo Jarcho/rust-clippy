@@ -1,9 +1,9 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::macros::{is_panic, root_macro_call_first_node};
+use clippy_utils::paths::MaybeRes;
 use clippy_utils::{is_in_test, is_inside_always_const_context};
-use rustc_hir::def::{DefKind, Res};
-use rustc_hir::{Expr, ExprKind, QPath};
+use rustc_hir::{Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::sym;
@@ -136,9 +136,7 @@ impl<'tcx> LateLintPass<'tcx> for PanicUnimplemented {
                 _ => {},
             }
         } else if let ExprKind::Call(func, [_]) = expr.kind
-            && let ExprKind::Path(QPath::Resolved(None, expr_path)) = func.kind
-            && let Res::Def(DefKind::Fn, def_id) = expr_path.res
-            && cx.tcx.is_diagnostic_item(sym::panic_any, def_id)
+            && func.is_res_diag_item(cx.tcx, sym::panic_any)
         {
             if is_inside_always_const_context(cx.tcx, expr.hir_id)
                 || self.allow_panic_in_tests && is_in_test(cx.tcx, expr.hir_id)

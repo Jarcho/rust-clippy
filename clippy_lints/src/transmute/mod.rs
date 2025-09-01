@@ -18,6 +18,7 @@ mod wrong_transmute;
 use clippy_config::Conf;
 use clippy_utils::is_in_const_context;
 use clippy_utils::msrvs::Msrv;
+use clippy_utils::paths::MaybeRes;
 use rustc_hir::{Expr, ExprKind, QPath};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
@@ -494,8 +495,7 @@ impl<'tcx> LateLintPass<'tcx> for Transmute {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, e: &'tcx Expr<'_>) {
         if let ExprKind::Call(path_expr, [arg]) = e.kind
             && let ExprKind::Path(QPath::Resolved(None, path)) = path_expr.kind
-            && let Some(def_id) = path.res.opt_def_id()
-            && cx.tcx.is_diagnostic_item(sym::transmute, def_id)
+            && path.res.is_res_diag_item(cx.tcx, sym::transmute)
         {
             // Avoid suggesting non-const operations in const contexts:
             // - from/to bits (https://github.com/rust-lang/rust/issues/73736)

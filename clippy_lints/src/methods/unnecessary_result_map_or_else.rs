@@ -1,9 +1,9 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
+use clippy_utils::paths::MaybeRes;
 use clippy_utils::peel_blocks;
 use clippy_utils::source::snippet;
 use clippy_utils::ty::is_type_diagnostic_item;
 use rustc_errors::Applicability;
-use rustc_hir as hir;
 use rustc_hir::{Closure, Expr, ExprKind, HirId, QPath};
 use rustc_lint::LateContext;
 use rustc_span::symbol::sym;
@@ -34,10 +34,7 @@ fn handle_qpath(
     expected_hir_id: HirId,
     qpath: QPath<'_>,
 ) {
-    if let QPath::Resolved(_, path) = qpath
-        && let hir::def::Res::Local(hir_id) = path.res
-        && expected_hir_id == hir_id
-    {
+    if qpath.is_res_local(expected_hir_id) {
         emit_lint(cx, expr, recv, def_arg);
     }
 }

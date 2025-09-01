@@ -1,14 +1,14 @@
 use std::ops::ControlFlow;
 
 use clippy_utils::diagnostics::span_lint_and_then;
+use clippy_utils::paths::MaybeRes;
 use clippy_utils::source::snippet;
 use clippy_utils::ty::is_type_diagnostic_item;
 use clippy_utils::visitors::for_each_local_use_after_expr;
 use clippy_utils::{get_parent_expr, sym};
 use rustc_ast::LitKind;
 use rustc_errors::Applicability;
-use rustc_hir::def::Res;
-use rustc_hir::{BinOpKind, Expr, ExprKind, QPath};
+use rustc_hir::{BinOpKind, Expr, ExprKind};
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self, Ty};
 
@@ -33,8 +33,7 @@ fn parse_fails_on_trailing_newline(ty: Ty<'_>) -> bool {
 pub fn check(cx: &LateContext<'_>, call: &Expr<'_>, recv: &Expr<'_>, arg: &Expr<'_>) {
     let recv_ty = cx.typeck_results().expr_ty(recv);
     if is_type_diagnostic_item(cx, recv_ty, sym::Stdin)
-        && let ExprKind::Path(QPath::Resolved(_, path)) = arg.peel_borrows().kind
-        && let Res::Local(local_id) = path.res
+        && let Some(local_id) = arg.peel_borrows().res_local_id()
     {
         // We've checked that `call` is a call to `Stdin::read_line()` with the right receiver,
         // now let's check if the first use of the string passed to `::read_line()`

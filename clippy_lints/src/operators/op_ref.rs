@@ -1,11 +1,12 @@
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::get_enclosing_block;
+use clippy_utils::paths::MaybeRes;
 use clippy_utils::source::snippet_with_context;
 use clippy_utils::ty::{implements_trait, is_copy};
 use rustc_errors::Applicability;
 use rustc_hir::def::Res;
 use rustc_hir::def_id::DefId;
-use rustc_hir::{BinOpKind, BorrowKind, Expr, ExprKind, GenericArg, ItemKind, QPath, TyKind};
+use rustc_hir::{BinOpKind, BorrowKind, Expr, ExprKind, GenericArg, ItemKind};
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self, Ty};
 
@@ -48,8 +49,8 @@ pub(crate) fn check<'tcx>(
                 let lcpy = is_copy(cx, lty);
                 let rcpy = is_copy(cx, rty);
                 if let Some((self_ty, other_ty)) = in_impl(cx, e, trait_id)
-                    && ((are_equal(cx, rty, self_ty) && are_equal(cx, lty, other_ty))
-                        || (are_equal(cx, rty, other_ty) && are_equal(cx, lty, self_ty)))
+                    && ((are_equal(rty, self_ty) && are_equal(lty, other_ty))
+                        || (are_equal(rty, other_ty) && are_equal(lty, self_ty)))
                 {
                     return; // Don't lint
                 }
@@ -113,8 +114,8 @@ pub(crate) fn check<'tcx>(
                 let lty = cx.typeck_results().expr_ty(l);
                 if let Some((self_ty, other_ty)) = in_impl(cx, e, trait_id) {
                     let rty = cx.typeck_results().expr_ty(right);
-                    if (are_equal(cx, rty, self_ty) && are_equal(cx, lty, other_ty))
-                        || (are_equal(cx, rty, other_ty) && are_equal(cx, lty, self_ty))
+                    if (are_equal(rty, self_ty) && are_equal(lty, other_ty))
+                        || (are_equal(rty, other_ty) && are_equal(lty, self_ty))
                     {
                         return; // Don't lint
                     }
@@ -146,8 +147,8 @@ pub(crate) fn check<'tcx>(
                 let rty = cx.typeck_results().expr_ty(r);
                 if let Some((self_ty, other_ty)) = in_impl(cx, e, trait_id) {
                     let lty = cx.typeck_results().expr_ty(left);
-                    if (are_equal(cx, rty, self_ty) && are_equal(cx, lty, other_ty))
-                        || (are_equal(cx, rty, other_ty) && are_equal(cx, lty, self_ty))
+                    if (are_equal(rty, self_ty) && are_equal(lty, other_ty))
+                        || (are_equal(rty, other_ty) && are_equal(lty, self_ty))
                     {
                         return; // Don't lint
                     }
@@ -196,15 +197,9 @@ fn in_impl<'tcx>(
     }
 }
 
-fn are_equal(cx: &LateContext<'_>, middle_ty: Ty<'_>, hir_ty: &rustc_hir::Ty<'_>) -> bool {
-    if let ty::Adt(adt_def, _) = middle_ty.kind()
-        && let Some(local_did) = adt_def.did().as_local()
-        && let item = cx.tcx.hir_expect_item(local_did)
-        && let middle_ty_id = item.owner_id.to_def_id()
-        && let TyKind::Path(QPath::Resolved(_, path)) = hir_ty.kind
-        && let Res::Def(_, hir_ty_id) = path.res
-    {
-        hir_ty_id == middle_ty_id
+fn are_equal(middle_ty: Ty<'_>, hir_ty: &rustc_hir::Ty<'_>) -> bool {
+    if let ty::Adt(adt_def, _) = middle_ty.kind() {
+        hir_ty.res_def_id() == Some(adt_def.did())
     } else {
         false
     }

@@ -1,7 +1,7 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::{span_lint, span_lint_hir_and_then};
 use clippy_utils::msrvs::{self, Msrv};
-use clippy_utils::paths::{self, PathNS, find_crates, lookup_path_str};
+use clippy_utils::paths::{self, MaybeResPath, PathNS, find_crates, lookup_path_str};
 use clippy_utils::visitors::for_each_expr;
 use clippy_utils::{fn_def_id, is_no_std_crate, sym};
 use rustc_data_structures::fx::FxIndexMap;
@@ -188,9 +188,8 @@ impl LazyInfo {
     fn from_item(cx: &LateContext<'_>, item: &Item<'_>) -> Option<Self> {
         // Check if item is a `once_cell:sync::Lazy` static.
         if let ItemKind::Static(_, _, ty, body_id) = item.kind
-            && let hir::TyKind::Path(hir::QPath::Resolved(_, path)) = ty.kind
-            && let Res::Def(_, path_def_id) = path.res
-            && paths::ONCE_CELL_SYNC_LAZY.matches(cx, path_def_id)
+            && let (None, Some(path)) = ty.opt_res_path()
+            && paths::ONCE_CELL_SYNC_LAZY.matches_res(cx, &path.res)
         {
             let ty_span_no_args = path_span_without_args(path);
             let body = cx.tcx.hir_body(body_id);
@@ -251,7 +250,7 @@ impl LazyInfo {
 fn path_span_without_args(path: &hir::Path<'_>) -> Span {
     path.segments
         .last()
-        .and_then(|seg| seg.args)
+        .and_then(|seg: &rustc_hir::PathSegment<'_>| seg.args)
         .map_or(path.span, |args| path.span.until(args.span_ext))
 }
 

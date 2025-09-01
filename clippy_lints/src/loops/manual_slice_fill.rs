@@ -1,6 +1,7 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::eager_or_lazy::switch_to_eager_eval;
 use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::paths::MaybeRes;
 use clippy_utils::source::{HasSession, snippet_with_applicability};
 use clippy_utils::ty::{implements_trait, is_slice_like};
 use clippy_utils::visitors::is_local_used;
@@ -44,9 +45,7 @@ pub(super) fn check<'tcx>(
         && let ExprKind::MethodCall(path, recv,..) = end.kind
         && path.ident.name == sym::len
         // Check if the slice which is being assigned to is the same as the one being iterated over.
-        && let ExprKind::Path(Resolved(_, recv_path)) = recv.kind
-        && let ExprKind::Path(Resolved(_, slice_path)) = slice.kind
-        && recv_path.res == slice_path.res
+        && recv.res() == slice.res()
         && !assignval.span.from_expansion()
         // It is generally not equivalent to use the `fill` method if `assignval` can have side effects
         && switch_to_eager_eval(cx, assignval)
@@ -70,13 +69,11 @@ pub(super) fn check<'tcx>(
         && let ExprKind::Unary(UnOp::Deref, slice_iter) = assignee.kind
         && let ExprKind::Path(Resolved(_, recv_path)) = recv.kind
         // Check if the slice which is being assigned to is the same as the one being iterated over.
-        && let ExprKind::Path(Resolved(_, slice_path)) = slice_iter.kind
-        && let Res::Local(local) = slice_path.res
-        && local == pat.hir_id
+        && slice_iter.is_res_local(pat.hir_id)
         && !assignval.span.from_expansion()
         && switch_to_eager_eval(cx, assignval)
         // `assignval` must not reference the iterator
-        && !is_local_used(cx, assignval, local)
+        && !is_local_used(cx, assignval, pat.hir_id)
         // The `fill` method cannot be used if the slice's element type does not implement the `Clone` trait.
         && let Some(clone_trait) = cx.tcx.lang_items().clone_trait()
         && implements_trait(cx, cx.typeck_results().expr_ty(recv), clone_trait, &[])

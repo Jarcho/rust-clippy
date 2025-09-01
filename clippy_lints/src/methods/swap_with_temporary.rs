@@ -1,8 +1,9 @@
 use clippy_utils::diagnostics::span_lint_and_then;
+use clippy_utils::paths::MaybeRes;
 use clippy_utils::sugg::Sugg;
 use rustc_ast::BorrowKind;
 use rustc_errors::{Applicability, Diag};
-use rustc_hir::{Expr, ExprKind, Node, QPath};
+use rustc_hir::{Expr, ExprKind, Node};
 use rustc_lint::LateContext;
 use rustc_middle::ty::adjustment::Adjust;
 use rustc_span::sym;
@@ -13,10 +14,7 @@ const MSG_TEMPORARY: &str = "this expression returns a temporary value";
 const MSG_TEMPORARY_REFMUT: &str = "this is a mutable reference to a temporary value";
 
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'_>, func: &Expr<'_>, args: &'tcx [Expr<'_>]) {
-    if let ExprKind::Path(QPath::Resolved(_, func_path)) = func.kind
-        && let Some(func_def_id) = func_path.res.opt_def_id()
-        && cx.tcx.is_diagnostic_item(sym::mem_swap, func_def_id)
-    {
+    if func.is_res_diag_item(cx.tcx, sym::mem_swap) {
         match (ArgKind::new(cx, &args[0]), ArgKind::new(cx, &args[1])) {
             (ArgKind::RefMutToTemp(left_temp), ArgKind::RefMutToTemp(right_temp)) => {
                 emit_lint_useless(cx, expr, &args[0], &args[1], left_temp, right_temp);

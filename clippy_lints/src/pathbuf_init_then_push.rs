@@ -1,11 +1,12 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
+use clippy_utils::paths::MaybeRes;
 use clippy_utils::source::{SpanRangeExt, snippet};
 use clippy_utils::ty::is_type_diagnostic_item;
 use clippy_utils::{path_to_local_id, sym};
 use rustc_ast::{LitKind, StrStyle};
 use rustc_errors::Applicability;
 use rustc_hir::def::Res;
-use rustc_hir::{BindingMode, Block, Expr, ExprKind, HirId, LetStmt, PatKind, QPath, Stmt, StmtKind, TyKind};
+use rustc_hir::{BindingMode, Block, Expr, ExprKind, HirId, LetStmt, PatKind, QPath, Stmt, StmtKind};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::impl_lint_pass;
 use rustc_span::{Span, Symbol};
@@ -65,10 +66,7 @@ impl PathbufPushSearcher<'_> {
     fn gen_pathbuf_from(&self, cx: &LateContext<'_>) -> Option<String> {
         if let ExprKind::Call(iter_expr, []) = &self.init_val.kind
             && let ExprKind::Path(QPath::TypeRelative(ty, segment)) = &iter_expr.kind
-            && let TyKind::Path(ty_path) = &ty.kind
-            && let QPath::Resolved(None, path) = ty_path
-            && let Res::Def(_, def_id) = &path.res
-            && cx.tcx.is_diagnostic_item(sym::PathBuf, *def_id)
+            && ty.is_res_diag_item(cx.tcx, sym::PathBuf)
             && segment.ident.name == sym::new
             && let Some(arg) = self.arg
             && let ExprKind::Lit(x) = arg.kind

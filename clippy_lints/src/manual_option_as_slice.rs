@@ -1,11 +1,10 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::{span_lint, span_lint_and_sugg};
 use clippy_utils::msrvs::Msrv;
-use clippy_utils::paths::PathRes;
+use clippy_utils::paths::{MaybeRes, MaybeResPath, PathRes};
 use clippy_utils::{is_none_arm, msrvs, peel_hir_expr_refs, sym};
 use rustc_errors::Applicability;
-use rustc_hir::def::{DefKind, Res};
-use rustc_hir::{Arm, Expr, ExprKind, LangItem, Pat, PatKind, QPath, is_range_literal};
+use rustc_hir::{Arm, Expr, ExprKind, LangItem, Pat, PatKind, is_range_literal};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty;
 use rustc_session::impl_lint_pass;
@@ -152,10 +151,9 @@ fn check_as_ref(cx: &LateContext<'_>, expr: &Expr<'_>, span: Span, msrv: Msrv) {
 }
 
 fn extract_ident_from_some_pat(cx: &LateContext<'_>, pat: &Pat<'_>) -> Option<Symbol> {
-    if let PatKind::TupleStruct(QPath::Resolved(None, path), [binding], _) = pat.kind
-        && let Res::Def(DefKind::Ctor(..), def_id) = path.res
+    if let PatKind::TupleStruct(ref qpath, [binding], _) = pat.kind
         && let PatKind::Binding(_mode, _hir_id, ident, _inner_pat) = binding.kind
-        && clippy_utils::is_lang_item_or_ctor(cx, def_id, LangItem::OptionSome)
+        && qpath.is_res_lang_ctor(cx.tcx, LangItem::OptionSome)
     {
         Some(ident.name)
     } else {
@@ -167,7 +165,7 @@ fn extract_ident_from_some_pat(cx: &LateContext<'_>, pat: &Pat<'_>) -> Option<Sy
 fn check_some_body(cx: &LateContext<'_>, name: Symbol, expr: &Expr<'_>) -> bool {
     if let ExprKind::Call(slice_from_ref, [arg]) = expr.peel_blocks().kind
         && cx.is_path_diag_item(slice_from_ref, sym::slice_from_ref)
-        && let ExprKind::Path(QPath::Resolved(None, path)) = arg.kind
+        && let (None, Some(path)) = arg.opt_res_path()
         && let [seg] = path.segments
     {
         seg.ident.name == name

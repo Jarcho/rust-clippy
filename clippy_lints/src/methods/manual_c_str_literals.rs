@@ -1,10 +1,11 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::paths::MaybeRes;
 use clippy_utils::source::snippet;
 use clippy_utils::{get_parent_expr, sym};
 use rustc_ast::{LitKind, StrStyle};
 use rustc_errors::Applicability;
-use rustc_hir::{Expr, ExprKind, Node, QPath, TyKind};
+use rustc_hir::{Expr, ExprKind, LangItem, Node, QPath};
 use rustc_lint::LateContext;
 use rustc_span::edition::Edition::Edition2021;
 use rustc_span::{Span, Symbol};
@@ -52,8 +53,7 @@ pub(super) fn check_as_ptr<'tcx>(
 /// Returns the function name.
 fn is_c_str_function(cx: &LateContext<'_>, func: &Expr<'_>) -> Option<Symbol> {
     if let ExprKind::Path(QPath::TypeRelative(cstr, fn_name)) = &func.kind
-        && let TyKind::Path(QPath::Resolved(_, ty_path)) = &cstr.kind
-        && cx.tcx.lang_items().c_str() == ty_path.res.opt_def_id()
+        && cstr.is_res_lang_item(cx.tcx, LangItem::CStr)
     {
         Some(fn_name.ident.name)
     } else {

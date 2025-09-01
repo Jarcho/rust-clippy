@@ -1,10 +1,11 @@
 use clippy_utils::diagnostics::{span_lint_and_note, span_lint_and_sugg};
+use clippy_utils::paths::{MaybeRes, MaybeResPath};
 use clippy_utils::source::snippet_with_context;
 use clippy_utils::ty::{has_drop, is_copy};
 use clippy_utils::{contains_name, get_parent_expr, in_automatically_derived, is_expr_default, is_from_proc_macro};
 use rustc_data_structures::fx::FxHashSet;
 use rustc_errors::Applicability;
-use rustc_hir::{Block, Expr, ExprKind, PatKind, QPath, Stmt, StmtKind, StructTailExpr};
+use rustc_hir::{Block, Expr, ExprKind, PatKind, Stmt, StmtKind, StructTailExpr};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty;
 use rustc_middle::ty::print::with_forced_trimmed_paths;
@@ -82,14 +83,11 @@ impl<'tcx> LateLintPass<'tcx> for Default {
         if !expr.span.from_expansion()
             // Avoid cases already linted by `field_reassign_with_default`
             && !self.reassigned_linted.contains(&expr.span)
-            && let ExprKind::Call(path, []) = expr.kind
+            && let ExprKind::Call(callee, []) = expr.kind
+            // Ignore `<Type as Default>::default`
+            && callee.typeless_res().is_res_diag_item(cx.tcx, sym::default_fn)
             && !in_automatically_derived(cx.tcx, expr.hir_id)
-            && let ExprKind::Path(ref qpath) = path.kind
-            && let Some(def_id) = cx.qpath_res(qpath, path.hir_id).opt_def_id()
-            && cx.tcx.is_diagnostic_item(sym::default_fn, def_id)
             && !is_update_syntax_base(cx, expr)
-            // Detect and ignore <Foo as Default>::default() because these calls do explicitly name the type.
-            && let QPath::Resolved(None, _path) = qpath
             && let expr_ty = cx.typeck_results().expr_ty(expr)
             && let ty::Adt(def, ..) = expr_ty.kind()
             && !is_from_proc_macro(cx, expr)
@@ -258,7 +256,7 @@ fn field_reassigned_by_stmt<'tcx>(this: &Stmt<'tcx>, binding_name: Symbol) -> Op
         // only take assignments to fields where the left-hand side field is a field of
         // the same binding as the previous statement
         && let ExprKind::Field(binding, field_ident) = assign_lhs.kind
-        && let ExprKind::Path(QPath::Resolved(_, path)) = binding.kind
+        && let (_, Some(path)) = binding.opt_res_path()
         && let Some(second_binding_name) = path.segments.last()
         && second_binding_name.ident.name == binding_name
     {

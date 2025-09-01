@@ -1,8 +1,9 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
+use clippy_utils::paths::MaybeRes;
 use clippy_utils::source::snippet_with_context;
 use clippy_utils::{last_path_segment, std_or_core};
 use rustc_errors::Applicability;
-use rustc_hir::{Expr, ExprKind, GenericArg, QPath, TyKind, def};
+use rustc_hir::{Expr, ExprKind, GenericArg, QPath, TyKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::{SyntaxContext, sym};
@@ -35,9 +36,7 @@ impl<'tcx> LateLintPass<'tcx> for DefaultIterEmpty {
         if let ExprKind::Call(iter_expr, []) = &expr.kind
             && let ExprKind::Path(QPath::TypeRelative(ty, _)) = &iter_expr.kind
             && let TyKind::Path(ty_path) = &ty.kind
-            && let QPath::Resolved(None, path) = ty_path
-            && let def::Res::Def(_, def_id) = &path.res
-            && cx.tcx.is_diagnostic_item(sym::IterEmpty, *def_id)
+            && ty_path.is_res_diag_item(cx.tcx, sym::IterEmpty)
             && let ctxt = expr.span.ctxt()
             && ty.span.ctxt() == ctxt
         {

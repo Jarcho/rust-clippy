@@ -1,5 +1,5 @@
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_and_then, span_lint_hir_and_then};
-use clippy_utils::paths::PathRes;
+use clippy_utils::paths::{MaybeResPath, PathRes};
 use clippy_utils::source::SpanRangeExt;
 use clippy_utils::sugg::Sugg;
 use clippy_utils::visitors::contains_unsafe_block;
@@ -11,7 +11,7 @@ use rustc_hir::hir_id::{HirId, HirIdMap};
 use rustc_hir::intravisit::{Visitor, walk_expr};
 use rustc_hir::{
     self as hir, AnonConst, BinOpKind, BindingMode, Body, Expr, ExprKind, FnRetTy, FnSig, GenericArg, ImplItemKind,
-    ItemKind, Lifetime, Mutability, Node, Param, PatKind, QPath, TraitFn, TraitItem, TraitItemKind, TyKind,
+    ItemKind, Lifetime, Mutability, Node, Param, PatKind, TraitFn, TraitItem, TraitItemKind, TyKind,
 };
 use rustc_infer::infer::TyCtxtInferExt;
 use rustc_infer::traits::{Obligation, ObligationCause};
@@ -402,7 +402,7 @@ fn check_fn_args<'cx, 'tcx: 'cx>(
             if let ty::Ref(_, ty, mutability) = *ty.kind()
                 && let  ty::Adt(adt, args) = *ty.kind()
                 && let TyKind::Ref(lt, ref ty) = hir_ty.kind
-                && let TyKind::Path(QPath::Resolved(None, path)) = ty.ty.kind
+                && let (None, Some(path)) = ty.ty.opt_res_path()
                 // Check that the name as typed matches the actual name of the type.
                 // e.g. `fn foo(_: &Foo)` shouldn't trigger the lint when `Foo` is an alias for `Vec`
                 && let [.., name] = path.segments

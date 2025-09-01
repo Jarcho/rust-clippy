@@ -1,6 +1,7 @@
 use clippy_utils::diagnostics::span_lint_and_then;
+use clippy_utils::paths::{MaybeRes, MaybeResPath};
 use rustc_errors::Applicability;
-use rustc_hir::{Expr, ExprKind, QPath};
+use rustc_hir::{Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
@@ -34,11 +35,9 @@ declare_lint_pass!(CreateDir => [CREATE_DIR]);
 impl LateLintPass<'_> for CreateDir {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &Expr<'_>) {
         if let ExprKind::Call(func, [_]) = expr.kind
-            && let ExprKind::Path(ref path) = func.kind
-            && let Some(def_id) = cx.qpath_res(path, func.hir_id).opt_def_id()
-            && cx.tcx.is_diagnostic_item(sym::fs_create_dir, def_id)
-            && let QPath::Resolved(_, path) = path
-            && let Some(last) = path.segments.last()
+            && let (None, Some(path)) = func.opt_res_path()
+            && path.is_res_diag_item(cx.tcx, sym::fs_create_dir)
+            && let [.., last] = path.segments
         {
             span_lint_and_then(
                 cx,

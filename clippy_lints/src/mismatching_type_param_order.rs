@@ -1,4 +1,5 @@
 use clippy_utils::diagnostics::span_lint_and_help;
+use clippy_utils::paths::MaybeResPath;
 use rustc_data_structures::fx::FxHashMap;
 use rustc_hir::def::{DefKind, Res};
 use rustc_hir::{GenericArg, Item, ItemKind, QPath, Ty, TyKind};
@@ -50,7 +51,7 @@ declare_lint_pass!(TypeParamMismatch => [MISMATCHING_TYPE_PARAM_ORDER]);
 impl<'tcx> LateLintPass<'tcx> for TypeParamMismatch {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'tcx>) {
         if let ItemKind::Impl(imp) = &item.kind
-            && let TyKind::Path(QPath::Resolved(_, path)) = &imp.self_ty.kind
+            && let (_, Some(path)) = imp.self_ty.opt_res_path()
             && let [segment, ..] = path.segments
             && let Some(generic_args) = segment.args
             && !generic_args.args.is_empty()

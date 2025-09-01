@@ -1,7 +1,7 @@
 use std::ops::ControlFlow;
 
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::paths::PathRes;
+use clippy_utils::paths::{MaybeRes, PathRes};
 use clippy_utils::sugg::Sugg;
 use clippy_utils::ty::is_copy;
 use clippy_utils::{
@@ -14,7 +14,7 @@ use rustc_hir::LangItem::{OptionNone, ResultErr};
 use rustc_hir::def::Res;
 use rustc_hir::intravisit::{Visitor, walk_expr, walk_path};
 use rustc_hir::{
-    Arm, BindingMode, Expr, ExprKind, HirId, MatchSource, Mutability, Node, Pat, PatKind, Path, QPath, UnOp,
+    Arm, BindingMode, Expr, ExprKind, HirId, MatchSource, Mutability, Node, Pat, PatKind, Path, UnOp,
 };
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::hir::nested_filter;
@@ -173,18 +173,11 @@ fn try_get_option_occurrence<'tcx>(
                 ExprKind::Field(e, _) | ExprKind::AddrOf(_, _, e) => Some(e),
                 _ => None,
             });
-            if let ExprKind::Path(QPath::Resolved(
-                None,
-                Path {
-                    res: Res::Local(local_id),
-                    ..
-                },
-            )) = e.kind
-            {
-                match some_captures.get(local_id).or_else(|| {
+            if let Some(local_id) = e.res_local_id() {
+                match some_captures.get(&local_id).or_else(|| {
                     (method_sugg == "map_or_else")
                         .then_some(())
-                        .and_then(|()| none_captures.get(local_id))
+                        .and_then(|()| none_captures.get(&local_id))
                 }) {
                     Some(CaptureKind::Value | CaptureKind::Use | CaptureKind::Ref(Mutability::Mut)) => return None,
                     Some(CaptureKind::Ref(Mutability::Not)) if as_mut => return None,
@@ -294,9 +287,7 @@ impl<'tcx> Visitor<'tcx> for ReferenceVisitor<'_, 'tcx> {
     type NestedFilter = nested_filter::All;
     type Result = ControlFlow<()>;
     fn visit_expr(&mut self, expr: &'tcx Expr<'_>) -> ControlFlow<()> {
-        if let ExprKind::Path(ref path) = expr.kind
-            && let QPath::Resolved(_, path) = path
-            && let Res::Local(local_id) = path.res
+        if let Some(local_id) = expr.res_local_id()
             && let Node::Pat(pat) = self.cx.tcx.hir_node(local_id)
             && let PatKind::Binding(_, local_id, ..) = pat.kind
             && self.identifiers.contains(&local_id)

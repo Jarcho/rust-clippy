@@ -7,8 +7,8 @@ use rustc_hir::def::Namespace::{MacroNS, TypeNS, ValueNS};
 use rustc_hir::def::{DefKind, Namespace, Res};
 use rustc_hir::def_id::{DefId, LOCAL_CRATE, LocalDefId};
 use rustc_hir::{
-    self as hir, Expr, ExprKind, HirId, ItemKind, LangItem, Node, Pat, PatExpr, PatExprKind, PatKind, QPath, TyKind,
-    UseKind,
+    self as hir, Expr, ExprKind, HirId, ItemKind, LangItem, Node, Pat, PatExpr, PatExprKind, PatKind, Path,
+    PathSegment, QPath, TyKind, UseKind,
 };
 use rustc_lint::LateContext;
 use rustc_middle::ty::fast_reject::SimplifiedType;
@@ -67,6 +67,164 @@ impl MaybeQPath for Pat<'_> {
     }
 }
 
+/// A HIR node which might be a `QPath::Resolved`.
+pub trait MaybeResPath {
+    /// If this node is a path gets both the contained path and the type
+    /// associated with it.
+    fn opt_res_path(&self) -> (Option<&hir::Ty<'_>>, Option<&Path<'_>>);
+
+    /// If this node is a path without an associated type gets the contained
+    /// resolution.
+    #[inline]
+    fn typeless_res(&self) -> &Res {
+        match self.opt_res_path() {
+            (None, Some(p)) => &p.res,
+            _ => &Res::Err,
+        }
+    }
+}
+impl MaybeResPath for QPath<'_> {
+    #[inline]
+    fn opt_res_path(&self) -> (Option<&hir::Ty<'_>>, Option<&Path<'_>>) {
+        match *self {
+            Self::Resolved(ty, path) => (ty, Some(path)),
+            _ => (None, None),
+        }
+    }
+}
+impl<T: MaybeQPath> MaybeResPath for T {
+    #[inline]
+    fn opt_res_path(&self) -> (Option<&hir::Ty<'_>>, Option<&Path<'_>>) {
+        match self.opt_qpath() {
+            Some((path, _)) => path.opt_res_path(),
+            None => (None, None),
+        }
+    }
+}
+
+/// A HIR node which might be a non-type-dependent path resolution.
+///
+/// Non-type-dependent paths include:
+/// * Locals.
+/// * All crate/module items.
+/// * Trait associated items accessed through the trait name (e.g. `Default::default`
+///   or `<_ as Default>::default`).
+/// * All struct and variant constructors accessed through the original type
+///   (e.g. `Option::Some`, `Option::None`).
+///
+/// If you need to handle associated items (inherent or trait) accessed through
+/// a type name or constructors through a type alias use the functions in `PathRes`
+/// instead.
+///
+/// All the functions on this trait will lookup the path's resolution. This lookup
+/// is not free and should be done at most once per item. e.g.
+///
+/// ```ignore
+/// // Don't do this
+/// let is_option_ctor = item.is_res_lang_item(tcx, LangItem::OptionSome)
+///     || item.is_res_lang_item(tcx, LangItem::OptionNone);
+///
+/// // Prefer this
+/// let is_option_ctor = item.res_def_id().is_some_and(|did| {
+///     tcx.lang_items().option_none_variant() == Some(did)
+///         || tcx.lang_items().option_some_variant() == Some(did)
+/// });
+/// ```
+pub trait MaybeRes {
+    /// Gets this node as a resolution or `Res::Err` if it doesn't contain one.
+    fn res(&self) -> &Res;
+
+    /// Gets the `DefId` of the item this resolves to.
+    #[inline]
+    fn res_def_id(&self) -> Option<DefId> {
+        self.res().opt_def_id()
+    }
+
+    /// Gets the `HirId` of the local this item resolves to.
+    #[inline]
+    fn res_local_id(&self) -> Option<HirId> {
+        match *self.res() {
+            Res::Local(id) => Some(id),
+            _ => None,
+        }
+    }
+
+    /// Checks whether this resolves to the specified local.
+    #[inline]
+    fn is_res_local(&self, id: HirId) -> bool {
+        self.res_local_id() == Some(id)
+    }
+
+    /// Checks whether this resolves to the specified item.
+    #[inline]
+    fn is_res_item(&self, did: DefId) -> bool {
+        self.res_def_id() == Some(did)
+    }
+
+    /// Checks whether this resolves to the specified diagnostic item.
+    #[inline]
+    fn is_res_diag_item(&self, tcx: TyCtxt<'_>, name: Symbol) -> bool {
+        self.res_def_id().is_some_and(|did| tcx.is_diagnostic_item(name, did))
+    }
+
+    /// Gets the diagnostic name of the item this resolves to.
+    #[inline]
+    fn res_diag_name(&self, tcx: TyCtxt<'_>) -> Option<Symbol> {
+        self.res_def_id().and_then(|did| tcx.get_diagnostic_name(did))
+    }
+
+    /// Checks whether this resolves to the specified `LangItem`.
+    #[inline]
+    fn is_res_lang_item(&self, tcx: TyCtxt<'_>, item: LangItem) -> bool {
+        self.res_def_id()
+            .is_some_and(|did| tcx.lang_items().get(item) == Some(did))
+    }
+
+    /// If this resolves to a constructor, gets the `DefId` of the corresponding variant.
+    #[inline]
+    fn res_ctor_variant_id(&self, tcx: TyCtxt<'_>) -> Option<DefId> {
+        if let Res::Def(DefKind::Ctor(..), id) = *self.res() {
+            tcx.opt_parent(id)
+        } else {
+            None
+        }
+    }
+
+    /// Checks if the path resolves to the constructor of the specified `LangItem`.
+    #[inline]
+    fn is_res_lang_ctor(&self, tcx: TyCtxt<'_>, item: LangItem) -> bool {
+        self.res_ctor_variant_id(tcx)
+            .is_some_and(|did| tcx.lang_items().get(item) == Some(did))
+    }
+}
+impl MaybeRes for Res {
+    #[inline]
+    fn res(&self) -> &Res {
+        self
+    }
+}
+impl MaybeRes for PathSegment<'_> {
+    #[inline]
+    fn res(&self) -> &Res {
+        &self.res
+    }
+}
+impl MaybeRes for Path<'_> {
+    #[inline]
+    fn res(&self) -> &Res {
+        &self.res
+    }
+}
+impl<T: ?Sized + MaybeResPath> MaybeRes for T {
+    #[inline]
+    fn res(&self) -> &Res {
+        match self.opt_res_path() {
+            (_, Some(p)) => &p.res,
+            (_, None) => &Res::Err,
+        }
+    }
+}
+
 /// A type which contains the results of type dependant name resolution.
 ///
 /// All the functions on this trait will lookup the path's resolution. This lookup
@@ -100,51 +258,48 @@ pub trait PathRes<'tcx> {
     }
 
     /// Gets the diagnostic name of the item this path resolves to.
+    #[inline]
     fn path_diag_name(&self, path: &impl MaybeQPath) -> Option<Symbol>
     where
         Self: HasTyCtxt<'tcx>,
     {
-        self.path_def_id(path)
-            .and_then(|did| self.tcx().get_diagnostic_name(did))
+        self.path_res(path).res_diag_name(self.tcx())
     }
 
     /// Checks if the path resolves to the specified diagnostic item.
+    #[inline]
     fn is_path_diag_item(&self, path: &impl MaybeQPath, name: Symbol) -> bool
     where
         Self: HasTyCtxt<'tcx>,
     {
-        self.path_def_id(path)
-            .is_some_and(|did| self.tcx().is_diagnostic_item(name, did))
+        self.path_res(path).is_res_diag_item(self.tcx(), name)
     }
 
     /// Checks if the path resolves to the specified `LangItem`.
+    #[inline]
     fn is_path_lang_item(&self, path: &impl MaybeQPath, item: LangItem) -> bool
     where
         Self: HasTyCtxt<'tcx>,
     {
-        self.path_def_id(path)
-            .is_some_and(|did| self.tcx().lang_items().get(item) == Some(did))
+        self.path_res(path).is_res_lang_item(self.tcx(), item)
     }
 
     /// If the path resolves to a constructor, gets the `DefId` of the corresponding  variant.
+    #[inline]
     fn path_ctor_variant_id(&self, path: &impl MaybeQPath) -> Option<DefId>
     where
         Self: HasTyCtxt<'tcx>,
     {
-        if let Res::Def(DefKind::Ctor(..), id) = self.path_res(path) {
-            self.tcx().opt_parent(id)
-        } else {
-            None
-        }
+        self.path_res(path).res_ctor_variant_id(self.tcx())
     }
 
     /// Checks if the path resolves to the constructor of the specified `LangItem`.
+    #[inline]
     fn is_path_lang_ctor(&self, path: &impl MaybeQPath, item: LangItem) -> bool
     where
         Self: HasTyCtxt<'tcx>,
     {
-        self.path_ctor_variant_id(path)
-            .is_some_and(|did| self.tcx().lang_items().get(item) == Some(did))
+        self.path_res(path).is_res_lang_ctor(self.tcx(), item)
     }
 }
 impl<'tcx> PathRes<'tcx> for LateContext<'tcx> {
@@ -247,6 +402,11 @@ impl PathLookup {
     pub fn matches_path(&self, cx: &LateContext<'_>, maybe_path: &impl MaybeQPath) -> bool {
         cx.path_def_id(maybe_path)
             .is_some_and(|def_id| self.matches(cx, def_id))
+    }
+
+    /// Resolves `maybe_res` to a [`DefId`] and checks if the [`PathLookup`] matches it
+    pub fn matches_res(&self, cx: &LateContext<'_>, maybe_res: &impl MaybeRes) -> bool {
+        maybe_res.res_def_id().is_some_and(|def_id| self.matches(cx, def_id))
     }
 
     /// Checks if the path resolves to `ty`'s definition, must be an `Adt`

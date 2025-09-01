@@ -3,6 +3,7 @@ use clippy_config::types::MatchLintBehaviour;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::higher::IfLetOrMatch;
 use clippy_utils::macros::HirNode;
+use clippy_utils::paths::MaybeResPath;
 use clippy_utils::source::snippet_with_context;
 use clippy_utils::ty::is_type_diagnostic_item;
 use clippy_utils::{is_lint_allowed, is_never_expr, is_wild, msrvs, pat_and_expr_can_be_question_mark, peel_blocks};
@@ -10,7 +11,7 @@ use rustc_ast::BindingMode;
 use rustc_data_structures::fx::FxHashMap;
 use rustc_errors::Applicability;
 use rustc_hir::def::{CtorOf, DefKind, Res};
-use rustc_hir::{Arm, Expr, ExprKind, MatchSource, Pat, PatExpr, PatExprKind, PatKind, QPath, Stmt, StmtKind};
+use rustc_hir::{Arm, Expr, ExprKind, MatchSource, Pat, PatExpr, PatExprKind, PatKind, Stmt, StmtKind};
 use rustc_lint::{LateContext, LintContext};
 use rustc_span::Span;
 use rustc_span::symbol::{Symbol, sym};
@@ -431,7 +432,7 @@ fn expr_simple_identity_map<'a, 'hir>(
     }
     let mut ident_map = FxHashMap::default();
     for (sub_pat, path) in sub_pats.iter().zip(paths.iter()) {
-        if let ExprKind::Path(QPath::Resolved(_ty, path)) = path.kind
+        if let (_, Some(path)) = path.opt_res_path()
             && let [path_seg] = path.segments
             && let ident = path_seg.ident
             && let Some(let_binding_mode) = pat_bindings.remove(&ident)

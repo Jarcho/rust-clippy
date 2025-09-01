@@ -2,15 +2,13 @@ use std::ops::ControlFlow;
 
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::path_to_local_id;
+use clippy_utils::paths::MaybeRes;
 use clippy_utils::source::snippet;
 use clippy_utils::visitors::{Descend, Visitable, for_each_expr};
 use rustc_data_structures::fx::FxHashMap;
-use rustc_hir::def::Res;
 use rustc_hir::def_id::LocalDefId;
 use rustc_hir::hir_id::ItemLocalId;
-use rustc_hir::{
-    Block, Body, BodyOwnerKind, Expr, ExprKind, HirId, LetExpr, LocalSource, Node, Pat, PatKind, QPath, UnOp,
-};
+use rustc_hir::{Block, Body, BodyOwnerKind, Expr, ExprKind, HirId, LetExpr, LocalSource, Node, Pat, PatKind, UnOp};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::{Span, Symbol};
@@ -260,7 +258,7 @@ fn is_self_shadow(cx: &LateContext<'_>, pat: &Pat<'_>, mut expr: &Expr<'_>, hir_
                 _,
             )
             | ExprKind::Unary(UnOp::Deref, e) => e,
-            ExprKind::Path(QPath::Resolved(None, path)) => break path.res == Res::Local(hir_id),
+            ExprKind::Path(ref qpath) => break qpath.is_res_local(hir_id),
             _ => break false,
         }
     }

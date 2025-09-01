@@ -129,7 +129,7 @@ use visitors::{Visitable, for_each_unconsumed_temporary};
 use crate::ast_utils::unordered_over;
 use crate::consts::{ConstEvalCtxt, Constant, mir_to_const};
 use crate::higher::Range;
-use crate::paths::PathRes;
+use crate::paths::{MaybeRes, PathRes};
 use crate::ty::{adt_and_variant_of_res, can_partially_move_ty, expr_sig, is_copy, is_recursively_primitive_type};
 use crate::visitors::for_each_expr_without_closures;
 
@@ -246,19 +246,6 @@ pub fn is_inside_always_const_context(tcx: TyCtxt<'_>, hir_id: HirId) -> bool {
     match ctx {
         ConstFn => false,
         Static(_) | Const { inline: _ } => true,
-    }
-}
-
-/// Checks if a `Res` refers to a constructor of a `LangItem`
-/// For example, use this to check whether a function call or a pattern is `Some(..)`.
-pub fn is_res_lang_ctor(tcx: TyCtxt<'_>, res: Res, lang_item: LangItem) -> bool {
-    if let Res::Def(DefKind::Ctor(..), id) = res
-        && let Some(lang_id) = tcx.lang_items().get(lang_item)
-        && let Some(id) = tcx.opt_parent(id)
-    {
-        id == lang_id
-    } else {
-        false
     }
 }
 
@@ -450,12 +437,7 @@ pub fn path_to_local_id(expr: &Expr<'_>, id: HirId) -> bool {
 pub fn path_to_local_with_projections(expr: &Expr<'_>) -> Option<HirId> {
     match expr.kind {
         ExprKind::Field(recv, _) | ExprKind::Index(recv, _, _) => path_to_local_with_projections(recv),
-        ExprKind::Path(QPath::Resolved(
-            _,
-            Path {
-                res: Res::Local(local), ..
-            },
-        )) => Some(*local),
+        ExprKind::Path(ref qpath) => qpath.res_local_id(),
         _ => None,
     }
 }
@@ -781,21 +763,11 @@ pub fn can_move_expr_to_closure_no_visit<'tcx>(
         | ExprKind::InlineAsm(_) => false,
         // Accessing a field of a local value can only be done if the type isn't
         // partially moved.
-        ExprKind::Field(
-            &Expr {
-                hir_id,
-                kind:
-                    ExprKind::Path(QPath::Resolved(
-                        _,
-                        Path {
-                            res: Res::Local(local_id),
-                            ..
-                        },
-                    )),
-                ..
-            },
-            _,
-        ) if !ignore_locals.contains(local_id) && can_partially_move_ty(cx, cx.typeck_results().node_type(hir_id)) => {
+        ExprKind::Field(e, _)
+            if let Some(local_id) = e.res_local_id()
+                && !ignore_locals.contains(&local_id)
+                && can_partially_move_ty(cx, cx.typeck_results().node_type(e.hir_id)) =>
+        {
             // TODO: check if the local has been partially moved. Assume it has for now.
             false
         },
@@ -857,10 +829,7 @@ pub fn capture_local_usage(cx: &LateContext<'_>, e: &Expr<'_>) -> CaptureKind {
         capture
     }
 
-    debug_assert!(matches!(
-        e.kind,
-        ExprKind::Path(QPath::Resolved(None, Path { res: Res::Local(_), .. }))
-    ));
+    debug_assert!(e.res_local_id().is_some());
 
     let mut child_id = e.hir_id;
     let mut capture = CaptureKind::Value;
@@ -1585,13 +1554,8 @@ pub fn is_self(slf: &Param<'_>) -> bool {
     }
 }
 
-pub fn is_self_ty(slf: &hir::Ty<'_>) -> bool {
-    if let TyKind::Path(QPath::Resolved(None, path)) = slf.kind
-        && let Res::SelfTyParam { .. } | Res::SelfTyAlias { .. } = path.res
-    {
-        return true;
-    }
-    false
+pub fn is_self_ty(ty: &hir::Ty<'_>) -> bool {
+    matches!(ty.res(), Res::SelfTyParam { .. } | Res::SelfTyAlias { .. })
 }
 
 pub fn iter_input_pats<'tcx>(decl: &FnDecl<'_>, body: &'tcx Body<'_>) -> impl Iterator<Item = &'tcx Param<'tcx>> {
@@ -2357,12 +2321,7 @@ pub fn get_ref_operators<'hir>(cx: &LateContext<'_>, expr: &'hir Expr<'hir>) -> 
 }
 
 pub fn is_hir_ty_cfg_dependant(cx: &LateContext<'_>, ty: &hir::Ty<'_>) -> bool {
-    if let TyKind::Path(QPath::Resolved(_, path)) = ty.kind
-        && let Res::Def(_, def_id) = path.res
-    {
-        return cx.tcx.has_attr(def_id, sym::cfg) || cx.tcx.has_attr(def_id, sym::cfg_attr);
-    }
-    false
+    matches!(ty.res_def_id(), Some(did) if cx.tcx.has_attr(did, sym::cfg) || cx.tcx.has_attr(did, sym::cfg_attr))
 }
 
 static TEST_ITEM_NAMES_CACHE: OnceLock<Mutex<FxHashMap<LocalModDefId, Vec<Symbol>>>> = OnceLock::new();
@@ -2381,9 +2340,8 @@ fn with_test_item_names(tcx: TyCtxt<'_>, module: LocalModDefId, f: impl FnOnce(&
                 if matches!(tcx.def_kind(id.owner_id), DefKind::Const)
                     && let item = tcx.hir_item(id)
                     && let ItemKind::Const(ident, _generics, ty, _body) = item.kind
-                    && let TyKind::Path(QPath::Resolved(_, path)) = ty.kind
-                        // We could also check for the type name `test::TestDescAndFn`
-                        && let Res::Def(DefKind::Struct, _) = path.res
+                    // We could also check for the type name `test::TestDescAndFn`
+                    && let Res::Def(DefKind::Struct, _) = ty.res()
                 {
                     let has_test_marker = tcx
                         .hir_attrs(item.hir_id())

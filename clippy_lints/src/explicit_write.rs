@@ -1,11 +1,10 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::macros::{FormatArgsStorage, format_args_inputs_span};
-use clippy_utils::paths::PathRes;
+use clippy_utils::paths::{MaybeRes, PathRes};
 use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::{is_expn_of, sym};
 use rustc_errors::Applicability;
-use rustc_hir::def::Res;
-use rustc_hir::{BindingMode, Block, BlockCheckMode, Expr, ExprKind, Node, PatKind, QPath, Stmt, StmtKind};
+use rustc_hir::{BindingMode, Block, BlockCheckMode, Expr, ExprKind, Node, PatKind, Stmt, StmtKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::ExpnId;
@@ -120,8 +119,7 @@ fn look_in_block<'tcx, 'hir>(cx: &LateContext<'tcx>, kind: &'tcx ExprKind<'hir>)
         } = block
 
         // Find id of the local that expr_end_of_block resolves to
-        && let ExprKind::Path(QPath::Resolved(None, expr_path)) = expr_end_of_block.kind
-        && let Res::Local(expr_res) = expr_path.res
+        && let Some(expr_res) = expr_end_of_block.res_local_id()
         && let Node::Pat(res_pat) = cx.tcx.hir_node(expr_res)
 
         // Find id of the local we found in the block

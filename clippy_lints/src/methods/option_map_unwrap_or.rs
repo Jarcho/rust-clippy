@@ -1,12 +1,13 @@
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::paths::MaybeRes;
 use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::ty::{is_copy, is_type_diagnostic_item};
 use rustc_data_structures::fx::FxHashSet;
 use rustc_errors::Applicability;
 use rustc_hir::def::Res;
 use rustc_hir::intravisit::{Visitor, walk_path};
-use rustc_hir::{ExprKind, HirId, Node, PatKind, Path, QPath};
+use rustc_hir::{ExprKind, HirId, Node, PatKind, Path};
 use rustc_lint::LateContext;
 use rustc_middle::hir::nested_filter;
 use rustc_span::{Span, sym};
@@ -161,9 +162,7 @@ impl<'tcx> Visitor<'tcx> for ReferenceVisitor<'_, 'tcx> {
         // one of the locals that was moved in the `unwrap_or` argument.
         // We are only interested in exprs that appear before the `unwrap_or` call.
         if expr.span < self.unwrap_or_span
-            && let ExprKind::Path(ref path) = expr.kind
-            && let QPath::Resolved(_, path) = path
-            && let Res::Local(local_id) = path.res
+            && let Some(local_id) = expr.res_local_id()
             && let Node::Pat(pat) = self.cx.tcx.hir_node(local_id)
             && let PatKind::Binding(_, local_id, ..) = pat.kind
             && self.identifiers.contains(&local_id)

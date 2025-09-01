@@ -1,9 +1,10 @@
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 
+use clippy_utils::paths::{MaybeRes, MaybeResPath};
 use rustc_errors::{Applicability, Diag};
 use rustc_hir::intravisit::{Visitor, VisitorExt, walk_body, walk_expr, walk_ty};
-use rustc_hir::{self as hir, AmbigArg, Body, Expr, ExprKind, GenericArg, Item, ItemKind, QPath, TyKind};
+use rustc_hir::{self as hir, AmbigArg, Body, Expr, ExprKind, GenericArg, Item, ItemKind, QPath};
 use rustc_hir_analysis::lower_ty;
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::hir::nested_filter;
@@ -209,16 +210,14 @@ enum ImplicitHasherType<'tcx> {
 impl<'tcx> ImplicitHasherType<'tcx> {
     /// Checks that `ty` is a target type without a `BuildHasher`.
     fn new(cx: &LateContext<'tcx>, hir_ty: &hir::Ty<'tcx>) -> Option<Self> {
-        if let TyKind::Path(QPath::Resolved(None, path)) = hir_ty.kind {
-            let params: Vec<_> = path
-                .segments
-                .last()
-                .as_ref()?
-                .args
-                .as_ref()?
+        if let (None, Some(path)) = hir_ty.opt_res_path()
+            && let [.., seg] = path.segments
+            && let Some(args) = seg.args
+        {
+            let params: Vec<_> = args
                 .args
                 .iter()
-                .filter_map(|arg| match arg {
+                .filter_map(|arg| match *arg {
                     GenericArg::Type(ty) => Some(ty),
                     _ => None,
                 })
@@ -328,18 +327,17 @@ impl<'tcx> Visitor<'tcx> for ImplicitHasherConstructorVisitor<'_, '_, 'tcx> {
         if let ExprKind::Call(fun, args) = e.kind
             && let ExprKind::Path(QPath::TypeRelative(ty, method)) = fun.kind
             && matches!(method.ident.name, sym::new | sym::with_capacity)
-            && let TyKind::Path(QPath::Resolved(None, ty_path)) = ty.kind
-            && let Some(ty_did) = ty_path.res.opt_def_id()
+            && let Some(ty_diag_name) = ty.res_diag_name(self.cx.tcx)
         {
             if self.target.ty() != self.maybe_typeck_results.unwrap().expr_ty(e) {
                 return;
             }
 
-            match (self.cx.tcx.get_diagnostic_name(ty_did), method.ident.name) {
-                (Some(sym::HashMap), sym::new) => {
+            match (ty_diag_name, method.ident.name) {
+                (sym::HashMap, sym::new) => {
                     self.suggestions.insert(e.span, "HashMap::default()".to_string());
                 },
-                (Some(sym::HashMap), sym::with_capacity) => {
+                (sym::HashMap, sym::with_capacity) => {
                     self.suggestions.insert(
                         e.span,
                         format!(
@@ -348,10 +346,10 @@ impl<'tcx> Visitor<'tcx> for ImplicitHasherConstructorVisitor<'_, '_, 'tcx> {
                         ),
                     );
                 },
-                (Some(sym::HashSet), sym::new) => {
+                (sym::HashSet, sym::new) => {
                     self.suggestions.insert(e.span, "HashSet::default()".to_string());
                 },
-                (Some(sym::HashSet), sym::with_capacity) => {
+                (sym::HashSet, sym::with_capacity) => {
                     self.suggestions.insert(
                         e.span,
                         format!(

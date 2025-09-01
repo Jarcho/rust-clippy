@@ -1,12 +1,12 @@
 use clippy_utils::diagnostics::{span_lint_hir, span_lint_hir_and_then};
 use clippy_utils::higher::{VecInitKind, get_vec_init_kind};
+use clippy_utils::paths::MaybeRes;
 use clippy_utils::source::snippet;
 use clippy_utils::{get_enclosing_block, sym};
 
 use rustc_errors::Applicability;
-use rustc_hir::def::Res;
 use rustc_hir::intravisit::{Visitor, walk_expr};
-use rustc_hir::{self as hir, Expr, ExprKind, HirId, LetStmt, PatKind, PathSegment, QPath, StmtKind};
+use rustc_hir::{self as hir, Expr, ExprKind, HirId, LetStmt, PatKind, PathSegment, StmtKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 
@@ -145,10 +145,7 @@ impl<'tcx> Visitor<'tcx> for ReadVecVisitor<'tcx> {
                 sym::read | sym::read_exact => {
                     let [arg] = args else { return };
                     if let ExprKind::AddrOf(_, hir::Mutability::Mut, inner) = arg.kind
-                        && let ExprKind::Path(QPath::Resolved(None, inner_path)) = inner.kind
-                        && let [inner_seg] = inner_path.segments
-                        && let Res::Local(res_id) = inner_seg.res
-                        && self.local_id == res_id
+                        && inner.is_res_local(self.local_id)
                     {
                         self.read_zero_expr = Some(e);
                         return;
@@ -156,10 +153,7 @@ impl<'tcx> Visitor<'tcx> for ReadVecVisitor<'tcx> {
                 },
                 sym::resize => {
                     // If the Vec is resized, then it's a valid read
-                    if let ExprKind::Path(QPath::Resolved(_, inner_path)) = receiver.kind
-                        && let Res::Local(res_id) = inner_path.res
-                        && self.local_id == res_id
-                    {
+                    if receiver.is_res_local(self.local_id) {
                         self.has_resize = true;
                         return;
                     }

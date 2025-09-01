@@ -1,4 +1,5 @@
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_hir_and_then};
+use clippy_utils::paths::{MaybeRes, MaybeResPath};
 use clippy_utils::source::{snippet_with_applicability, snippet_with_context};
 use clippy_utils::sugg::has_enclosing_paren;
 use clippy_utils::ty::{adjust_derefs_manually_drop, implements_trait, is_manually_drop};
@@ -675,14 +676,7 @@ fn try_parse_ref_op<'tcx>(
 ) -> Option<(RefOp, &'tcx Expr<'tcx>, Option<HirId>)> {
     let (call_path_id, def_id, arg) = match expr.kind {
         ExprKind::MethodCall(_, arg, [], _) => (None, typeck.type_dependent_def_id(expr.hir_id)?, arg),
-        ExprKind::Call(
-            &Expr {
-                kind: ExprKind::Path(QPath::Resolved(None, path)),
-                hir_id,
-                ..
-            },
-            [arg],
-        ) => (Some(hir_id), path.res.opt_def_id()?, arg),
+        ExprKind::Call(callee, [arg]) => (Some(callee.hir_id), callee.typeless_res().res_def_id()?, arg),
         ExprKind::Unary(UnOp::Deref, sub_expr) if !typeck.expr_ty(sub_expr).is_raw_ptr() => {
             return Some((RefOp::Deref, sub_expr, None));
         },

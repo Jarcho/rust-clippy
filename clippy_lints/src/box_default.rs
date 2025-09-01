@@ -1,10 +1,9 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::is_default_equivalent;
 use clippy_utils::macros::macro_backtrace;
-use clippy_utils::paths::PathRes;
+use clippy_utils::paths::{MaybeRes, MaybeResPath, PathRes};
 use clippy_utils::ty::expr_sig;
 use rustc_errors::Applicability;
-use rustc_hir::def::Res;
 use rustc_hir::intravisit::{InferKind, Visitor, VisitorExt, walk_ty};
 use rustc_hir::{AmbigArg, Block, Expr, ExprKind, HirId, LangItem, LetStmt, Node, QPath, Ty, TyKind};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
@@ -55,7 +54,8 @@ impl LateLintPass<'_> for BoxDefault {
             // or that we are inside a `vec!` macro expansion
             && (expr.span.eq_ctxt(arg.span) || is_local_vec_expn(cx, arg, expr))
             // And the argument is `Default::default()` or the type is specified
-            && (is_plain_default(cx, arg_path) || (given_type(cx, expr) && is_default_equivalent(cx, arg)))
+            && (arg_path.typeless_res().is_res_diag_item(cx.tcx, sym::default_fn)
+                || (given_type(cx, expr) && is_default_equivalent(cx, arg)))
         {
             span_lint_and_sugg(
                 cx,
@@ -67,18 +67,6 @@ impl LateLintPass<'_> for BoxDefault {
                 Applicability::MachineApplicable,
             );
         }
-    }
-}
-
-fn is_plain_default(cx: &LateContext<'_>, arg_path: &Expr<'_>) -> bool {
-    // we need to match the actual path so we don't match e.g. "u8::default"
-    if let ExprKind::Path(QPath::Resolved(None, path)) = &arg_path.kind
-        && let Res::Def(_, def_id) = path.res
-    {
-        // avoid generic parameters
-        cx.tcx.is_diagnostic_item(sym::default_fn, def_id) && path.segments.iter().all(|seg| seg.args.is_none())
-    } else {
-        false
     }
 }
 

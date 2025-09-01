@@ -1,12 +1,13 @@
 use clippy_utils::attrs::span_contains_cfg;
 use clippy_utils::diagnostics::{span_lint_and_then, span_lint_hir_and_then};
+use clippy_utils::paths::MaybeRes;
 use rustc_data_structures::fx::FxIndexMap;
 use rustc_errors::Applicability;
 use rustc_hir::def::CtorOf;
 use rustc_hir::def::DefKind::Ctor;
 use rustc_hir::def::Res::Def;
 use rustc_hir::def_id::LocalDefId;
-use rustc_hir::{Expr, ExprKind, Item, ItemKind, Node, Path, QPath, Variant, VariantData};
+use rustc_hir::{Expr, ExprKind, Item, ItemKind, Node, Variant, VariantData};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::TyCtxt;
 use rustc_session::impl_lint_pass;
@@ -171,7 +172,9 @@ impl LateLintPass<'_> for EmptyWithBrackets {
     }
 
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &Expr<'_>) {
-        if let Some(def_id) = check_expr_for_enum_as_function(expr) {
+        if let Def(Ctor(CtorOf::Variant, _), def_id) = expr.res()
+            && let Some(def_id) = def_id.as_local()
+        {
             if let Some(parentheses_span) = call_parentheses_span(cx.tcx, expr) {
                 // Do not count expressions from macro expansion as a redundant use site.
                 if expr.span.from_expansion() {
@@ -271,22 +274,6 @@ fn call_parentheses_span(tcx: TyCtxt<'_>, expr: &Expr<'_>) -> Option<Span> {
         && callee.hir_id == expr.hir_id
     {
         Some(parent.span.with_lo(expr.span.hi()))
-    } else {
-        None
-    }
-}
-
-// Returns the LocalDefId of the variant being called as a function if it exists.
-fn check_expr_for_enum_as_function(expr: &Expr<'_>) -> Option<LocalDefId> {
-    if let ExprKind::Path(QPath::Resolved(
-        _,
-        Path {
-            res: Def(Ctor(CtorOf::Variant, _), def_id),
-            ..
-        },
-    )) = expr.kind
-    {
-        def_id.as_local()
     } else {
         None
     }

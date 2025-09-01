@@ -1,14 +1,14 @@
 use std::ops::ControlFlow;
 
 use clippy_utils::diagnostics::span_lint_and_then;
-use clippy_utils::paths::PathRes;
+use clippy_utils::paths::{MaybeRes, PathRes};
 use clippy_utils::sym;
 use clippy_utils::ty::is_type_diagnostic_item;
 use clippy_utils::visitors::{Visitable, for_each_expr};
 use rustc_ast::LitKind;
 use rustc_data_structures::fx::FxHashSet;
 use rustc_hir::def::{DefKind, Res};
-use rustc_hir::{Block, Expr, ExprKind, Impl, Item, ItemKind, LangItem, Node, QPath, TyKind, VariantData};
+use rustc_hir::{Block, Expr, ExprKind, Impl, Item, ItemKind, LangItem, Node, VariantData};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::{Ty, TypeckResults};
 use rustc_session::declare_lint_pass;
@@ -201,11 +201,10 @@ impl<'tcx> LateLintPass<'tcx> for MissingFieldsInDebug {
         // is this an `impl Debug for X` block?
         if let ItemKind::Impl(Impl { of_trait: Some(of_trait), self_ty, .. }) = item.kind
             && let Res::Def(DefKind::Trait, trait_def_id) = of_trait.trait_ref.path.res
-            && let TyKind::Path(QPath::Resolved(_, self_path)) = &self_ty.kind
             // make sure that the self type is either a struct, an enum or a union
             // this prevents ICEs such as when self is a type parameter or a primitive type
             // (see #10887, #11063)
-            && let Res::Def(DefKind::Struct | DefKind::Enum | DefKind::Union, self_path_did) = self_path.res
+            && let Res::Def(DefKind::Struct | DefKind::Enum | DefKind::Union, self_path_did) = self_ty.res()
             && cx.tcx.is_diagnostic_item(sym::Debug, trait_def_id)
             // don't trigger if this impl was derived
             && !cx.tcx.is_automatically_derived(item.owner_id.to_def_id())

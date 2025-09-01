@@ -1,10 +1,11 @@
 use clippy_utils::consts::{ConstEvalCtxt, Constant, FullInt, integer_const, is_zero_integer_const};
 use clippy_utils::diagnostics::span_lint_and_sugg;
+use clippy_utils::paths::MaybeResPath;
 use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::{ExprUseNode, clip, expr_use_ctxt, peel_hir_expr_refs, unsext};
 use rustc_errors::Applicability;
 use rustc_hir::def::{DefKind, Res};
-use rustc_hir::{BinOpKind, Expr, ExprKind, Node, Path, QPath};
+use rustc_hir::{BinOpKind, Expr, ExprKind, Node};
 use rustc_lint::LateContext;
 use rustc_middle::ty;
 use rustc_span::{Span, kw};
@@ -275,14 +276,7 @@ fn is_expr_used_with_type_annotation<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx E
 /// ```
 fn is_assoc_fn_without_type_instance<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'tcx>) -> bool {
     if let ExprKind::Call(func, _) = peel_hir_expr_refs(expr).0.kind
-        && let ExprKind::Path(QPath::Resolved(
-            // If it's not None, don't need to go further.
-            None,
-            Path {
-                res: Res::Def(DefKind::AssocFn, def_id),
-                ..
-            },
-        )) = func.kind
+        && let Res::Def(DefKind::AssocFn, def_id) = func.typeless_res()
         && let output_ty = cx.tcx.fn_sig(def_id).instantiate_identity().skip_binder().output()
         && let ty::Param(ty::ParamTy {
             name: kw::SelfUpper, ..
