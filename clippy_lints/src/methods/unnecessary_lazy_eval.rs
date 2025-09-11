@@ -6,6 +6,7 @@ use hir::FnRetTy;
 use rustc_errors::Applicability;
 use rustc_hir as hir;
 use rustc_lint::LateContext;
+use rustc_middle::ty;
 use rustc_span::sym;
 
 use super::UNNECESSARY_LAZY_EVALUATIONS;
@@ -19,18 +20,23 @@ pub(super) fn check<'tcx>(
     arg: &'tcx hir::Expr<'_>,
     simplify_using: &str,
 ) -> bool {
-    let is_option = cx.is_diag_item(cx.typeck_results().expr_ty(recv), sym::Option);
-    let is_result = cx.is_diag_item(cx.typeck_results().expr_ty(recv), sym::Result);
-    let is_bool = cx.typeck_results().expr_ty(recv).is_bool();
-
-    if (is_option || is_result || is_bool)
-        && let hir::ExprKind::Closure(&hir::Closure {
-            body,
-            fn_decl,
-            kind: hir::ClosureKind::Closure,
-            ..
-        }) = arg.kind
+    if let hir::ExprKind::Closure(&hir::Closure {
+        body,
+        fn_decl,
+        kind: hir::ClosureKind::Closure,
+        ..
+    }) = arg.kind
     {
+        let msg = match *cx.typeck_results().expr_ty(recv).kind() {
+            ty::Bool => "unnecessary closure used with `bool::then`",
+            ty::Adt(adt, _) => match cx.opt_diag_name(adt) {
+                Some(sym::Option) => "unnecessary closure used to substitute value for `Option::None`",
+                Some(sym::Result) => "unnecessary closure used to substitute value for `Result::Err`",
+                _ => return false,
+            },
+            _ => return false,
+        };
+
         let body = cx.tcx.hir_body(body);
         let body_expr = &body.value;
 
@@ -39,13 +45,6 @@ pub(super) fn check<'tcx>(
         }
 
         if eager_or_lazy::switch_to_eager_eval(cx, body_expr) {
-            let msg = if is_option {
-                "unnecessary closure used to substitute value for `Option::None`"
-            } else if is_result {
-                "unnecessary closure used to substitute value for `Result::Err`"
-            } else {
-                "unnecessary closure used with `bool::then`"
-            };
             let applicability = if body
                 .params
                 .iter()

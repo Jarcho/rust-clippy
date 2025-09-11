@@ -44,21 +44,18 @@ pub(super) fn check(
     allow_unwrap_in_tests: bool,
     variant: Variant,
 ) {
-    let ty = cx.typeck_results().expr_ty(recv).peel_refs();
-
-    let (kind, none_value, none_prefix) = if cx.is_diag_item(ty, sym::Option) && !is_err {
-        ("an `Option`", "None", "")
-    } else if cx.is_diag_item(ty, sym::Result)
-        && let ty::Adt(_, substs) = ty.kind()
-        && let Some(t_or_e_ty) = substs[usize::from(!is_err)].as_type()
-    {
-        if is_never_like(t_or_e_ty) {
-            return;
-        }
-
-        ("a `Result`", if is_err { "Ok" } else { "Err" }, "an ")
-    } else {
+    let ty::Adt(adt, args) = *cx.typeck_results().expr_ty(recv).peel_refs().kind() else {
         return;
+    };
+    let (kind, none_value, none_prefix) = match cx.opt_diag_name(adt) {
+        Some(sym::Option) if !is_err => ("an `Option`", "None", ""),
+        Some(sym::Result)
+            if let Some(t_or_e_ty) = args[usize::from(!is_err)].as_type()
+                && !is_never_like(t_or_e_ty) =>
+        {
+            ("a `Result`", if is_err { "Ok" } else { "Err" }, "an ")
+        },
+        _ => return,
     };
 
     let method_suffix = if is_err { "_err" } else { "" };

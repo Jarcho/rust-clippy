@@ -105,41 +105,38 @@ fn generate_swap_warning<'tcx>(
             && eq_expr_value(cx, lhs1, lhs2)
             && e1.span.ctxt() == ctxt
             && e2.span.ctxt() == ctxt
-        {
-            let ty = cx.typeck_results().expr_ty(lhs1).peel_refs();
-
-            if matches!(ty.kind(), ty::Slice(_))
-                || matches!(ty.kind(), ty::Array(_, _))
-                || cx.is_diag_item(ty, sym::Vec)
-                || cx.is_diag_item(ty, sym::VecDeque)
-            {
-                let slice = Sugg::hir_with_applicability(cx, lhs1, "<slice>", &mut applicability);
-
-                span_lint_and_sugg(
-                    cx,
-                    MANUAL_SWAP,
-                    span,
-                    format!("this looks like you are swapping elements of `{slice}` manually"),
-                    "try",
-                    format!(
-                        "{}{}.swap({}, {});",
-                        IndexBinding {
-                            block,
-                            swap1_idx: idx1,
-                            swap2_idx: idx2,
-                            suggest_span: span,
-                            cx,
-                            ctxt,
-                            applicability: &mut applicability,
-                        }
-                        .snippet_index_bindings(&[idx1, idx2, rhs1, rhs2]),
-                        slice.maybe_paren(),
-                        snippet_with_context(cx, idx1.span, ctxt, "..", &mut applicability).0,
-                        snippet_with_context(cx, idx2.span, ctxt, "..", &mut applicability).0,
-                    ),
-                    applicability,
-                );
+            && match *cx.typeck_results().expr_ty(lhs1).peel_refs().kind() {
+                ty::Slice(_) | ty::Array(..) => true,
+                ty::Adt(adt, _) => matches!(cx.opt_diag_name(adt), Some(sym::Vec | sym::VecDeque)),
+                _ => false,
             }
+        {
+            let slice = Sugg::hir_with_applicability(cx, lhs1, "<slice>", &mut applicability);
+
+            span_lint_and_sugg(
+                cx,
+                MANUAL_SWAP,
+                span,
+                format!("this looks like you are swapping elements of `{slice}` manually"),
+                "try",
+                format!(
+                    "{}{}.swap({}, {});",
+                    IndexBinding {
+                        block,
+                        swap1_idx: idx1,
+                        swap2_idx: idx2,
+                        suggest_span: span,
+                        cx,
+                        ctxt,
+                        applicability: &mut applicability,
+                    }
+                    .snippet_index_bindings(&[idx1, idx2, rhs1, rhs2]),
+                    slice.maybe_paren(),
+                    snippet_with_context(cx, idx1.span, ctxt, "..", &mut applicability).0,
+                    snippet_with_context(cx, idx2.span, ctxt, "..", &mut applicability).0,
+                ),
+                applicability,
+            );
         }
         return;
     }
