@@ -313,7 +313,7 @@ pub trait MaybeDef: Sized {
 
     /// Gets this definition as a resolution. Returns `Res::Err` if this is `None`.
     #[inline]
-    fn as_res(self) -> Res {
+    fn to_res(self) -> Res {
         self.opt_def().map_or(Res::Err, |(kind, id)| Res::Def(kind, id))
     }
 }
@@ -580,7 +580,7 @@ pub trait PathRes<'tcx> {
     fn qpath_res(&self, qpath: &QPath<'_>, id: HirId) -> Res {
         match qpath {
             QPath::Resolved(_, p) => p.res,
-            QPath::TypeRelative(..) | QPath::LangItem(..) => self.type_dependent_def(id).as_res(),
+            QPath::TypeRelative(..) | QPath::LangItem(..) => self.type_dependent_def(id).to_res(),
         }
     }
 

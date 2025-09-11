@@ -3,8 +3,8 @@ use clippy_config::types::MatchLintBehaviour;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::higher::IfLetOrMatch;
 use clippy_utils::macros::HirNode;
+use clippy_utils::res::TyCtxtDefExt;
 use clippy_utils::source::snippet_with_context;
-use clippy_utils::ty::is_type_diagnostic_item;
 use clippy_utils::{is_lint_allowed, is_never_expr, is_wild, msrvs, pat_and_expr_can_be_question_mark, peel_blocks};
 use rustc_ast::BindingMode;
 use rustc_data_structures::fx::FxHashMap;
@@ -369,7 +369,7 @@ fn pat_allowed_for_else(cx: &LateContext<'_>, pat: &'_ Pat<'_>, check_types: boo
         }
         let ty = typeck_results.pat_ty(pat);
         // Option and Result are allowed, everything else isn't.
-        if !(is_type_diagnostic_item(cx, ty, sym::Option) || is_type_diagnostic_item(cx, ty, sym::Result)) {
+        if !matches!(cx.opt_diag_name(ty), Some(sym::Option | sym::Result)) {
             has_disallowed = true;
         }
     });

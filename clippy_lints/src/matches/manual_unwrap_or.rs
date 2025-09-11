@@ -112,7 +112,7 @@ fn handle(
             && let Some(condition_ty) = cx.typeck_results().expr_ty(condition).walk().nth(1)
             && let GenericArgKind::Type(condition_ty) = condition_ty.kind()
             && implements_trait(cx, condition_ty, default_trait_id, &[])
-            && is_default_equivalent(cx, peel_blocks(body_none))
+            && is_default_equivalent(cx.tcx, cx.typing_env(), cx.typeck_results(), peel_blocks(body_none))
         {
             // We now check if the condition is a None variant, in which case we need to specify the type
             if cx.is_path_lang_ctor(condition, LangItem::OptionNone) {

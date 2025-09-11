@@ -1,8 +1,7 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::peel_blocks;
-use clippy_utils::res::PathRes;
+use clippy_utils::res::{PathRes, TyCtxtDefExt};
 use clippy_utils::source::snippet;
-use clippy_utils::ty::is_type_diagnostic_item;
 use rustc_errors::Applicability;
 use rustc_hir as hir;
 use rustc_hir::LangItem::{OptionNone, OptionSome};
@@ -20,7 +19,7 @@ pub(super) fn check<'tcx>(
     map_arg: &'tcx hir::Expr<'_>,
 ) {
     // lint if the caller of `map_or_else()` is a `Result`
-    if is_type_diagnostic_item(cx, cx.typeck_results().expr_ty(recv), sym::Result)
+    if cx.is_diag_item( cx.typeck_results().expr_ty(recv), sym::Result)
         // We check that it is mapped as `Some`.
         && cx.is_path_lang_ctor(map_arg, OptionSome)
         && let hir::ExprKind::Closure(&hir::Closure { body, .. }) = def_arg.kind

@@ -35,7 +35,7 @@ use std::collections::hash_map::Entry;
 use std::{iter, mem};
 
 use crate::paths::{PathNS, lookup_path_str};
-use crate::res::PathRes;
+use crate::res::{PathRes, TyCtxtDefExt};
 
 mod type_certainty;
 pub use type_certainty::expr_type_is_certain;
@@ -380,32 +380,6 @@ pub fn is_recursively_primitive_type(ty: Ty<'_>) -> bool {
         ty::Ref(_, inner, _) if inner.is_str() => true,
         ty::Array(inner_type, _) | ty::Slice(inner_type) => is_recursively_primitive_type(inner_type),
         ty::Tuple(inner_types) => inner_types.iter().all(is_recursively_primitive_type),
-        _ => false,
-    }
-}
-
-/// Checks if the type is a reference equals to a diagnostic item
-pub fn is_type_ref_to_diagnostic_item(cx: &LateContext<'_>, ty: Ty<'_>, diag_item: Symbol) -> bool {
-    match ty.kind() {
-        ty::Ref(_, ref_ty, _) => is_type_diagnostic_item(cx, *ref_ty, diag_item),
-        _ => false,
-    }
-}
-
-/// Checks if the type is equal to a diagnostic item. To check if a type implements a
-/// trait marked with a diagnostic item use [`implements_trait`].
-///
-/// For a further exploitation what diagnostic items are see [diagnostic items] in
-/// rustc-dev-guide.
-///
-/// ---
-///
-/// If you change the signature, remember to update the internal lint `MatchTypeOnDiagItem`
-///
-/// [Diagnostic Items]: https://rustc-dev-guide.rust-lang.org/diagnostics/diagnostic-items.html
-pub fn is_type_diagnostic_item(cx: &LateContext<'_>, ty: Ty<'_>, diag_item: Symbol) -> bool {
-    match ty.kind() {
-        ty::Adt(adt, _) => cx.tcx.is_diagnostic_item(diag_item, adt.did()),
         _ => false,
     }
 }
@@ -1375,7 +1349,11 @@ pub fn has_non_owning_mutable_access<'tcx>(cx: &LateContext<'tcx>, iter_ty: Ty<'
 
 /// Check if `ty` is slice-like, i.e., `&[T]`, `[T; N]`, or `Vec<T>`.
 pub fn is_slice_like<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>) -> bool {
-    ty.is_slice() || ty.is_array() || is_type_diagnostic_item(cx, ty, sym::Vec)
+    match *ty.kind() {
+        ty::Slice(_) | ty::Array(..) => true,
+        ty::Adt(adt, _) => cx.is_diag_item(adt, sym::Vec),
+        _ => false,
+    }
 }
 
 pub fn get_field_idx_by_name(ty: Ty<'_>, name: Symbol) -> Option<usize> {

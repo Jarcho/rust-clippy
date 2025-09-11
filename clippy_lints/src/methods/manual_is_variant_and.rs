@@ -1,8 +1,8 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::res::TyCtxtDefExt;
 use clippy_utils::source::{snippet, snippet_with_applicability};
 use clippy_utils::sugg::Sugg;
-use clippy_utils::ty::is_type_diagnostic_item;
 use clippy_utils::{get_parent_expr, sym};
 use rustc_ast::LitKind;
 use rustc_errors::Applicability;
@@ -30,11 +30,14 @@ pub(super) fn check(
     }
 
     // 2. the caller of `map()` is neither `Option` nor `Result`
-    let is_option = is_type_diagnostic_item(cx, cx.typeck_results().expr_ty(map_recv), sym::Option);
-    let is_result = is_type_diagnostic_item(cx, cx.typeck_results().expr_ty(map_recv), sym::Result);
-    if !is_option && !is_result {
-        return;
-    }
+    let (msg, sugg) = match cx.opt_diag_name(cx.typeck_results().expr_ty(map_recv)) {
+        Some(sym::Option) => (
+            "called `map(<f>).unwrap_or_default()` on an `Option` value",
+            "is_some_and",
+        ),
+        Some(sym::Result) => ("called `map(<f>).unwrap_or_default()` on a `Result` value", "is_ok_and"),
+        _ => return,
+    };
 
     // 3. the caller of `unwrap_or_default` is neither `Option<bool>` nor `Result<bool, _>`
     if !cx.typeck_results().expr_ty(expr).is_bool() {
@@ -46,20 +49,13 @@ pub(super) fn check(
         return;
     }
 
-    let lint_msg = if is_option {
-        "called `map(<f>).unwrap_or_default()` on an `Option` value"
-    } else {
-        "called `map(<f>).unwrap_or_default()` on a `Result` value"
-    };
-    let suggestion = if is_option { "is_some_and" } else { "is_ok_and" };
-
     span_lint_and_sugg(
         cx,
         MANUAL_IS_VARIANT_AND,
         expr.span.with_lo(map_span.lo()),
-        lint_msg,
+        msg,
         "use",
-        format!("{}({})", suggestion, snippet(cx, map_arg.span, "..")),
+        format!("{}({})", sugg, snippet(cx, map_arg.span, "..")),
         Applicability::MachineApplicable,
     );
 }
@@ -208,7 +204,7 @@ pub(super) fn check_map(cx: &LateContext<'_>, expr: &Expr<'_>) {
                     && cx.tcx.is_diagnostic_item(flavor.symbol(), adt.did())
                     && args.type_at(0).is_bool()
                     && let ExprKind::MethodCall(_, recv, [map_expr], _) = expr2.kind
-                    && is_type_diagnostic_item(cx, cx.typeck_results().expr_ty(recv), flavor.symbol())
+                    && cx.is_diag_item(cx.typeck_results().expr_ty(recv), flavor.symbol())
                     && let Ok(map_func) = MapFunc::try_from(map_expr)
                 {
                     return emit_lint(cx, parent_expr.span, op, flavor, bool_cst, map_func, recv);

@@ -97,7 +97,7 @@ impl LateLintPass<'_> for MyStructLint {
 
         // 1. Using diagnostic items
         // The last argument is the diagnostic item to check for
-        if is_type_diagnostic_item(cx, ty, sym::Option) {
+        if cx.is_diag_item( ty, sym::Option) {
             // The type is an `Option`
         }
 

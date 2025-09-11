@@ -1,22 +1,13 @@
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_and_then};
+use clippy_utils::res::TyCtxtDefExt;
 use clippy_utils::source::SpanRangeExt;
-use clippy_utils::ty::is_type_diagnostic_item;
 
 use rustc_errors::Applicability;
 use rustc_hir::{Expr, ExprKind};
 use rustc_lint::LateContext;
-use rustc_middle::ty::Ty;
 use rustc_span::{Span, sym};
 
 use super::UNNECESSARY_GET_THEN_CHECK;
-
-fn is_a_std_set_type(cx: &LateContext<'_>, ty: Ty<'_>) -> bool {
-    is_type_diagnostic_item(cx, ty, sym::HashSet) || is_type_diagnostic_item(cx, ty, sym::BTreeSet)
-}
-
-fn is_a_std_map_type(cx: &LateContext<'_>, ty: Ty<'_>) -> bool {
-    is_type_diagnostic_item(cx, ty, sym::HashMap) || is_type_diagnostic_item(cx, ty, sym::BTreeMap)
-}
 
 pub(super) fn check(
     cx: &LateContext<'_>,
@@ -26,14 +17,12 @@ pub(super) fn check(
     arg: &Expr<'_>,
     is_some: bool,
 ) {
-    let caller_ty = cx.typeck_results().expr_ty(get_caller);
+    let is_set = match cx.opt_diag_name(cx.typeck_results().expr_ty(get_caller)) {
+        Some(sym::HashSet | sym::BTreeSet) => true,
+        Some(sym::HashMap | sym::BTreeMap) => false,
+        _ => return,
+    };
 
-    let is_set = is_a_std_set_type(cx, caller_ty);
-    let is_map = is_a_std_map_type(cx, caller_ty);
-
-    if !is_set && !is_map {
-        return;
-    }
     let ExprKind::MethodCall(path, _, _, get_call_span) = get_call.kind else {
         return;
     };

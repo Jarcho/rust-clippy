@@ -1,6 +1,6 @@
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::higher::ForLoop;
-use clippy_utils::ty::is_type_diagnostic_item;
+use clippy_utils::res::TyCtxtDefExt;
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
@@ -39,25 +39,24 @@ declare_lint_pass!(IterOverHashType => [ITER_OVER_HASH_TYPE]);
 
 impl LateLintPass<'_> for IterOverHashType {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &'_ rustc_hir::Expr<'_>) {
-        let hash_iter_tys = [
-            sym::HashMap,
-            sym::HashSet,
-            sym::hashmap_keys_ty,
-            sym::hashmap_values_ty,
-            sym::hashmap_values_mut_ty,
-            sym::hashmap_iter_ty,
-            sym::hashmap_iter_mut_ty,
-            sym::hashmap_drain_ty,
-            sym::hashset_iter_ty,
-            sym::hashset_drain_ty,
-        ];
-
         if let Some(for_loop) = ForLoop::hir(expr)
             && !for_loop.body.span.from_expansion()
             && let ty = cx.typeck_results().expr_ty(for_loop.arg).peel_refs()
-            && hash_iter_tys
-                .into_iter()
-                .any(|sym| is_type_diagnostic_item(cx, ty, sym))
+            && matches!(
+                cx.opt_diag_name(ty),
+                Some(
+                    sym::HashMap
+                        | sym::HashSet
+                        | sym::hashmap_keys_ty
+                        | sym::hashmap_values_ty
+                        | sym::hashmap_values_mut_ty
+                        | sym::hashmap_iter_ty
+                        | sym::hashmap_iter_mut_ty
+                        | sym::hashmap_drain_ty
+                        | sym::hashset_iter_ty
+                        | sym::hashset_drain_ty
+                )
+            )
         {
             span_lint(
                 cx,

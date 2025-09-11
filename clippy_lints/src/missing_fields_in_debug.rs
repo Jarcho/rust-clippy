@@ -1,9 +1,8 @@
 use std::ops::ControlFlow;
 
 use clippy_utils::diagnostics::span_lint_and_then;
-use clippy_utils::res::PathRes;
+use clippy_utils::res::{PathRes, TyCtxtDefExt};
 use clippy_utils::sym;
-use clippy_utils::ty::is_type_diagnostic_item;
 use clippy_utils::visitors::{Visitable, for_each_expr};
 use rustc_ast::LitKind;
 use rustc_data_structures::fx::FxHashSet;
@@ -110,15 +109,14 @@ fn should_lint<'tcx>(
     let mut has_debug_struct = false;
 
     for_each_expr(cx, block, |expr| {
-        if let ExprKind::MethodCall(path, recv, ..) = &expr.kind {
-            let recv_ty = typeck_results.expr_ty(recv).peel_refs();
-
-            if path.ident.name == sym::debug_struct && is_type_diagnostic_item(cx, recv_ty, sym::Formatter) {
-                has_debug_struct = true;
-            } else if path.ident.name == sym::finish_non_exhaustive
-                && is_type_diagnostic_item(cx, recv_ty, sym::DebugStruct)
-            {
-                has_finish_non_exhaustive = true;
+        if let ExprKind::MethodCall(path, recv, ..) = &expr.kind
+            && matches!(path.ident.name, sym::debug_struct | sym::finish_non_exhaustive)
+            && let Some(diag_name) = cx.opt_diag_name(typeck_results.expr_ty(recv).peel_refs())
+        {
+            match (path.ident.name, diag_name) {
+                (sym::debug_struct, sym::Formatter) => has_debug_struct = true,
+                (sym::finish_non_exhaustive, sym::DebugStruct) => has_finish_non_exhaustive = true,
+                _ => {},
             }
         }
         ControlFlow::<!, _>::Continue(())
@@ -137,11 +135,11 @@ fn as_field_call<'tcx>(
     expr: &Expr<'_>,
 ) -> Option<Symbol> {
     if let ExprKind::MethodCall(path, recv, [debug_field, _], _) = &expr.kind
-        && let recv_ty = typeck_results.expr_ty(recv).peel_refs()
-        && is_type_diagnostic_item(cx, recv_ty, sym::DebugStruct)
         && path.ident.name == sym::field
         && let ExprKind::Lit(lit) = &debug_field.kind
         && let LitKind::Str(sym, ..) = lit.node
+        && let recv_ty = typeck_results.expr_ty(recv).peel_refs()
+        && cx.is_diag_item(recv_ty, sym::DebugStruct)
     {
         Some(sym)
     } else {

@@ -1,8 +1,8 @@
 use std::ops::ControlFlow;
 
 use clippy_utils::diagnostics::span_lint_and_then;
+use clippy_utils::res::TyCtxtDefExt;
 use clippy_utils::source::snippet;
-use clippy_utils::ty::is_type_diagnostic_item;
 use clippy_utils::visitors::for_each_local_use_after_expr;
 use clippy_utils::{get_parent_expr, sym};
 use rustc_ast::LitKind;
@@ -32,7 +32,7 @@ fn parse_fails_on_trailing_newline(ty: Ty<'_>) -> bool {
 
 pub fn check(cx: &LateContext<'_>, call: &Expr<'_>, recv: &Expr<'_>, arg: &Expr<'_>) {
     let recv_ty = cx.typeck_results().expr_ty(recv);
-    if is_type_diagnostic_item(cx, recv_ty, sym::Stdin)
+    if cx.is_diag_item(recv_ty, sym::Stdin)
         && let ExprKind::Path(QPath::Resolved(_, path)) = arg.peel_borrows().kind
         && let Res::Local(local_id) = path.res
     {
@@ -44,9 +44,8 @@ pub fn check(cx: &LateContext<'_>, call: &Expr<'_>, recv: &Expr<'_>, arg: &Expr<
                 let data = if let ExprKind::MethodCall(segment, recv, args, span) = parent.kind {
                     if args.is_empty()
                         && segment.ident.name == sym::parse
-                        && let parse_result_ty = cx.typeck_results().expr_ty(parent)
-                        && is_type_diagnostic_item(cx, parse_result_ty, sym::Result)
-                        && let ty::Adt(_, substs) = parse_result_ty.kind()
+                        && let ty::Adt(adt, substs) = *cx.typeck_results().expr_ty(parent).kind()
+                        && cx.is_diag_item(adt, sym::Result)
                         && let Some(ok_ty) = substs[0].as_type()
                         && parse_fails_on_trailing_newline(ok_ty)
                     {

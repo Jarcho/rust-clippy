@@ -1,7 +1,8 @@
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::macros::{PanicExpn, find_assert_args, root_macro_call_first_node};
+use clippy_utils::res::TyCtxtDefExt;
 use clippy_utils::source::snippet_with_context;
-use clippy_utils::ty::{has_debug_impl, is_copy, is_type_diagnostic_item};
+use clippy_utils::ty::{has_debug_impl, is_copy};
 use clippy_utils::usage::local_used_after_expr;
 use clippy_utils::{path_to_local, sym};
 use rustc_errors::Applicability;
@@ -54,8 +55,8 @@ impl<'tcx> LateLintPass<'tcx> for AssertionsOnResultStates {
             && let ExprKind::MethodCall(method_segment, recv, [], _) = condition.kind
             && let result_type_with_refs = cx.typeck_results().expr_ty(recv)
             && let result_type = result_type_with_refs.peel_refs()
-            && is_type_diagnostic_item(cx, result_type, sym::Result)
-            && let ty::Adt(_, args) = result_type.kind()
+            && let ty::Adt(adt, args) = *result_type.kind()
+            && cx.is_diag_item(adt, sym::Result)
         {
             if !is_copy(cx, result_type) {
                 if result_type_with_refs != result_type {

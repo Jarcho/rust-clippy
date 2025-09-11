@@ -122,7 +122,7 @@ fn check_struct<'tcx>(
     // this closure checks both if the expr is equivalent to a `default()` call and does not
     // have such coercions.
     let is_default_without_adjusts = |expr| {
-        is_default_equivalent(cx, expr)
+        is_default_equivalent(cx.tcx, cx.typing_env(), typeck_results, expr)
             && typeck_results.expr_adjustments(expr).iter().all(|adj| {
                 !matches!(adj.kind, Adjust::Pointer(PointerCoercion::Unsize)
                     if contains_trait_object(adj.target))

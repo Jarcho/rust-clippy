@@ -1,6 +1,7 @@
 use crate::methods::utils::derefs_to_slice;
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::ty::{get_iterator_item_ty, is_type_diagnostic_item};
+use clippy_utils::res::TyCtxtDefExt;
+use clippy_utils::ty::get_iterator_item_ty;
 use rustc_errors::Applicability;
 use rustc_hir as hir;
 use rustc_lint::LateContext;
@@ -16,9 +17,9 @@ pub(super) fn check<'tcx>(
     recv: &'tcx hir::Expr<'_>,
 ) {
     let expr_ty = cx.typeck_results().expr_ty(expr);
-    if is_type_diagnostic_item(cx, expr_ty, sym::Vec)
+    if let ty::Adt(adt, args) = *expr_ty.kind()
+        && cx.is_diag_item(adt, sym::Vec)
         && let Some(slice) = derefs_to_slice(cx, recv, cx.typeck_results().expr_ty(recv))
-        && let ty::Adt(_, args) = expr_ty.kind()
         && let Some(iter_item_ty) = get_iterator_item_ty(cx, cx.typeck_results().expr_ty(recv))
         && let ty::Ref(_, iter_item_ty, _) = iter_item_ty.kind()
         && *iter_item_ty == args.type_at(0)

@@ -1,7 +1,6 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::path_to_local_id;
-use clippy_utils::res::PathRes;
-use clippy_utils::ty::is_type_diagnostic_item;
+use clippy_utils::res::{PathRes, TyCtxtDefExt};
 use clippy_utils::visitors::contains_unsafe_block;
 
 use rustc_hir::LangItem::{OptionNone, OptionSome};
@@ -97,7 +96,7 @@ pub(super) fn check_match<'tcx>(
     expr: &'tcx Expr<'_>,
 ) {
     let ty = cx.typeck_results().expr_ty(expr);
-    if is_type_diagnostic_item(cx, ty, sym::Option)
+    if cx.is_diag_item(ty, sym::Option)
         && let [first_arm, second_arm] = arms
         && first_arm.guard.is_none()
         && second_arm.guard.is_none()

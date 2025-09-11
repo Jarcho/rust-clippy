@@ -1,6 +1,6 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
+use clippy_utils::res::TyCtxtDefExt;
 use clippy_utils::source::SpanRangeExt;
-use clippy_utils::ty::is_type_diagnostic_item;
 use clippy_utils::{peel_blocks, peel_hir_expr_while, sym};
 use rustc_ast::LitKind;
 use rustc_errors::Applicability;
@@ -47,7 +47,7 @@ impl<'tcx> LateLintPass<'tcx> for IneffectiveOpenOptions {
         if let ExprKind::MethodCall(name, recv, [_], _) = expr.kind
             && name.ident.name == sym::open
             && !expr.span.from_expansion()
-            && is_type_diagnostic_item(cx, cx.typeck_results().expr_ty(recv).peel_refs(), sym::FsOpenOptions)
+            && cx.is_diag_item(cx.typeck_results().expr_ty(recv).peel_refs(), sym::FsOpenOptions)
         {
             let mut append = false;
             let mut write = None;

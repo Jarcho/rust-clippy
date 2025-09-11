@@ -56,7 +56,6 @@ Let us take a look at how we might check for the implementation of
 `our_fancy_method` on a type:
 
 ```rust
-use clippy_utils::ty::is_type_diagnostic_item;
 use clippy_utils::return_ty;
 use rustc_hir::{ImplItem, ImplItemKind};
 use rustc_lint::{LateContext, LateLintPass};
@@ -71,7 +70,7 @@ impl<'tcx> LateLintPass<'tcx> for MyTypeImpl {
             // We can also check it has a parameter `self`
             && signature.decl.implicit_self.has_implicit_self()
             // We can go even further and even check if its return type is `String`
-            && is_type_diagnostic_item(cx, return_ty(cx, impl_item.hir_id), sym::String)
+            && cx.is_diag_item( return_ty(cx, impl_item.hir_id), sym::String)
         {
             println!("`our_fancy_method` is implemented!");
         }

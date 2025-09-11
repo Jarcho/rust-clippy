@@ -1,8 +1,8 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::is_range_full;
-use clippy_utils::ty::{is_type_diagnostic_item, is_type_lang_item};
+use clippy_utils::res::TyCtxtDefExt;
 use rustc_errors::Applicability;
-use rustc_hir::{Expr, ExprKind, LangItem, QPath};
+use rustc_hir::{Expr, ExprKind, QPath};
 use rustc_lint::LateContext;
 use rustc_span::Span;
 use rustc_span::symbol::sym;
@@ -28,10 +28,14 @@ pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, recv: &Expr<'_>, span
 }
 
 fn match_acceptable_type(cx: &LateContext<'_>, expr: &Expr<'_>, types: &[rustc_span::Symbol]) -> bool {
-    let expr_ty = cx.typeck_results().expr_ty(expr).peel_refs();
-    types.iter().any(|&ty| is_type_diagnostic_item(cx, expr_ty, ty))
-    // String type is a lang item but not a diagnostic item for now so we need a separate check
-        || is_type_lang_item(cx, expr_ty, LangItem::String)
+    if let Some(adt) = cx.typeck_results().expr_ty(expr).peel_refs().ty_adt_def() {
+        match cx.opt_diag_name(adt) {
+            Some(name) => types.contains(&name),
+            None => cx.tcx.lang_items().string() == Some(adt.did()),
+        }
+    } else {
+        false
+    }
 }
 
 fn suggest(cx: &LateContext<'_>, expr: &Expr<'_>, recv: &Expr<'_>, span: Span) {

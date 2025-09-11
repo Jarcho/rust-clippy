@@ -118,7 +118,7 @@ use rustc_middle::ty::adjustment::{Adjust, Adjustment, AutoBorrow, PointerCoerci
 use rustc_middle::ty::layout::IntegerExt;
 use rustc_middle::ty::{
     self as rustc_ty, Binder, BorrowKind, ClosureKind, EarlyBinder, GenericArgKind, GenericArgsRef, IntTy, Ty, TyCtxt,
-    TypeFlags, TypeVisitableExt, UintTy, UpvarCapture,
+    TypeFlags, TypeVisitableExt, TypeckResults, TypingEnv, UintTy, UpvarCapture,
 };
 use rustc_span::hygiene::{ExpnKind, MacroKind};
 use rustc_span::source_map::SourceMap;
@@ -130,7 +130,7 @@ use visitors::{Visitable, for_each_unconsumed_temporary};
 use crate::ast_utils::unordered_over;
 use crate::consts::{ConstEvalCtxt, Constant, mir_to_const};
 use crate::higher::Range;
-use crate::res::PathRes;
+use crate::res::{PathRes, TyCtxtDefExt};
 use crate::ty::{adt_and_variant_of_res, can_partially_move_ty, expr_sig, is_copy, is_recursively_primitive_type};
 use crate::visitors::for_each_expr_without_closures;
 
@@ -557,7 +557,7 @@ pub fn can_mut_borrow_both(cx: &LateContext<'_>, e1: &Expr<'_>, e2: &Expr<'_>) -
 
 /// Returns true if the `def_id` associated with the `path` is recognized as a "default-equivalent"
 /// constructor from the std library
-fn is_default_equivalent_ctor(cx: &LateContext<'_>, def_id: DefId, path: &QPath<'_>) -> bool {
+fn is_default_equivalent_ctor(tcx: TyCtxt<'_>, def_id: DefId, path: &QPath<'_>) -> bool {
     let std_types_symbols = &[
         sym::Vec,
         sym::VecDeque,
@@ -571,25 +571,27 @@ fn is_default_equivalent_ctor(cx: &LateContext<'_>, def_id: DefId, path: &QPath<
 
     if let QPath::TypeRelative(_, method) = path
         && method.ident.name == sym::new
-        && let Some(impl_did) = cx.tcx.impl_of_assoc(def_id)
-        && let Some(adt) = cx.tcx.type_of(impl_did).instantiate_identity().ty_adt_def()
+        && let Some(impl_did) = tcx.impl_of_assoc(def_id)
+        && let Some(adt) = tcx.type_of(impl_did).instantiate_identity().ty_adt_def()
     {
-        return Some(adt.did()) == cx.tcx.lang_items().string()
-            || (cx.tcx.get_diagnostic_name(adt.did())).is_some_and(|adt_name| std_types_symbols.contains(&adt_name));
+        return Some(adt.did()) == tcx.lang_items().string()
+            || (tcx.get_diagnostic_name(adt.did())).is_some_and(|adt_name| std_types_symbols.contains(&adt_name));
     }
     false
 }
 
 /// Returns true if the expr is equal to `Default::default` when evaluated.
-pub fn is_default_equivalent_call(
-    cx: &LateContext<'_>,
+pub fn is_default_equivalent_call<'tcx>(
+    tcx: TyCtxt<'tcx>,
+    typing_env: TypingEnv<'tcx>,
+    typeck: &TypeckResults<'_>,
     repl_func: &Expr<'_>,
     whole_call_expr: Option<&Expr<'_>>,
 ) -> bool {
     if let ExprKind::Path(ref repl_func_qpath) = repl_func.kind
-        && let Some(repl_def_id) = cx.qpath_res(repl_func_qpath, repl_func.hir_id).opt_def_id()
-        && (is_diag_trait_item(cx, repl_def_id, sym::Default)
-            || is_default_equivalent_ctor(cx, repl_def_id, repl_func_qpath))
+        && let Some(repl_def) = typeck.path_def((repl_func_qpath, repl_func.hir_id))
+        && (tcx.is_assoc_of_diag_item(repl_def, sym::Default)
+            || is_default_equivalent_ctor(tcx, repl_def.1, repl_func_qpath))
     {
         return true;
     }
@@ -597,33 +599,33 @@ pub fn is_default_equivalent_call(
     // Get the type of the whole method call expression, find the exact method definition, look at
     // its body and check if it is similar to the corresponding `Default::default()` body.
     let Some(e) = whole_call_expr else { return false };
-    let Some(default_fn_def_id) = cx.tcx.get_diagnostic_item(sym::default_fn) else {
+    let Some(default_fn_def_id) = tcx.get_diagnostic_item(sym::default_fn) else {
         return false;
     };
-    let Some(ty) = cx.tcx.typeck(e.hir_id.owner.def_id).expr_ty_adjusted_opt(e) else {
+    let Some(ty) = tcx.typeck(e.hir_id.owner.def_id).expr_ty_adjusted_opt(e) else {
         return false;
     };
-    let args = rustc_ty::GenericArgs::for_item(cx.tcx, default_fn_def_id, |param, _| {
+    let args = rustc_ty::GenericArgs::for_item(tcx, default_fn_def_id, |param, _| {
         if let rustc_ty::GenericParamDefKind::Lifetime = param.kind {
-            cx.tcx.lifetimes.re_erased.into()
+            tcx.lifetimes.re_erased.into()
         } else if param.index == 0 && param.name == kw::SelfUpper {
             ty.into()
         } else {
-            param.to_error(cx.tcx)
+            param.to_error(tcx)
         }
     });
-    let instance = rustc_ty::Instance::try_resolve(cx.tcx, cx.typing_env(), default_fn_def_id, args);
+    let instance = rustc_ty::Instance::try_resolve(tcx, typing_env, default_fn_def_id, args);
 
     let Ok(Some(instance)) = instance else { return false };
     if let rustc_ty::InstanceKind::Item(def) = instance.def
-        && !cx.tcx.is_mir_available(def)
+        && !tcx.is_mir_available(def)
     {
         return false;
     }
     let ExprKind::Path(ref repl_func_qpath) = repl_func.kind else {
         return false;
     };
-    let Some(repl_def_id) = cx.qpath_res(repl_func_qpath, repl_func.hir_id).opt_def_id() else {
+    let Some(repl_def_id) = typeck.qpath_res(repl_func_qpath, repl_func.hir_id).opt_def_id() else {
         return false;
     };
 
@@ -632,14 +634,14 @@ pub fn is_default_equivalent_call(
     // resolution of the expression we had in the path. This lets us identify, for example, that
     // the body of `<Vec<T> as Default>::default()` is a `Vec::new()`, and the field was being
     // initialized to `Vec::new()` as well.
-    let body = cx.tcx.instance_mir(instance.def);
+    let body = tcx.instance_mir(instance.def);
     for block_data in body.basic_blocks.iter() {
         if block_data.statements.len() == 1
             && let StatementKind::Assign(assign) = &block_data.statements[0].kind
             && assign.0.local == RETURN_PLACE
             && let Rvalue::Aggregate(kind, _places) = &assign.1
             && let AggregateKind::Adt(did, variant_index, _, _, _) = &**kind
-            && let def = cx.tcx.adt_def(did)
+            && let def = tcx.adt_def(did)
             && let variant = &def.variant(*variant_index)
             && variant.fields.is_empty()
             && let Some((_, did)) = variant.ctor
@@ -676,36 +678,45 @@ pub fn is_default_equivalent_call(
 /// Returns true if the expr is equal to `Default::default()` of its type when evaluated.
 ///
 /// It doesn't cover all cases, like struct literals, but it is a close approximation.
-pub fn is_default_equivalent(cx: &LateContext<'_>, e: &Expr<'_>) -> bool {
+pub fn is_default_equivalent<'tcx>(
+    tcx: TyCtxt<'tcx>,
+    typing_env: TypingEnv<'tcx>,
+    typeck: &TypeckResults<'_>,
+    e: &Expr<'_>,
+) -> bool {
     match &e.kind {
         ExprKind::Lit(lit) => match lit.node {
             LitKind::Bool(false) | LitKind::Int(Pu128(0), _) => true,
             LitKind::Str(s, _) => s.is_empty(),
             _ => false,
         },
-        ExprKind::Tup(items) | ExprKind::Array(items) => items.iter().all(|x| is_default_equivalent(cx, x)),
+        ExprKind::Tup(items) | ExprKind::Array(items) => {
+            items.iter().all(|x| is_default_equivalent(tcx, typing_env, typeck, x))
+        },
         ExprKind::Repeat(x, len) => {
             if let ConstArgKind::Anon(anon_const) = len.kind
-                && let ExprKind::Lit(const_lit) = cx.tcx.hir_body(anon_const.body).value.kind
+                && let ExprKind::Lit(const_lit) = tcx.hir_body(anon_const.body).value.kind
                 && let LitKind::Int(v, _) = const_lit.node
                 && v <= 32
-                && is_default_equivalent(cx, x)
+                && is_default_equivalent(tcx, typing_env, typeck, x)
             {
                 true
             } else {
                 false
             }
         },
-        ExprKind::Call(repl_func, []) => is_default_equivalent_call(cx, repl_func, Some(e)),
-        ExprKind::Call(from_func, [arg]) => is_default_equivalent_from(cx, from_func, arg),
-        ExprKind::Path(qpath) => cx.is_path_lang_ctor((qpath, e.hir_id), OptionNone),
+        ExprKind::Call(repl_func, []) => is_default_equivalent_call(tcx, typing_env, typeck, repl_func, Some(e)),
+        ExprKind::Call(from_func, [arg]) => is_default_equivalent_from(tcx, from_func, arg),
+        ExprKind::Path(qpath) => tcx.is_lang_ctor(typeck.path_def((qpath, e.hir_id)), OptionNone),
         ExprKind::AddrOf(rustc_hir::BorrowKind::Ref, _, expr) => matches!(expr.kind, ExprKind::Array([])),
-        ExprKind::Block(Block { stmts: [], expr, .. }, _) => expr.is_some_and(|e| is_default_equivalent(cx, e)),
+        ExprKind::Block(Block { stmts: [], expr, .. }, _) => {
+            expr.is_some_and(|e| is_default_equivalent(tcx, typing_env, typeck, e))
+        },
         _ => false,
     }
 }
 
-fn is_default_equivalent_from(cx: &LateContext<'_>, from_func: &Expr<'_>, arg: &Expr<'_>) -> bool {
+fn is_default_equivalent_from(tcx: TyCtxt<'_>, from_func: &Expr<'_>, arg: &Expr<'_>) -> bool {
     if let ExprKind::Path(QPath::TypeRelative(ty, seg)) = from_func.kind
         && seg.ident.name == sym::from
         && let TyKind::Path(QPath::Resolved(_, ty_path)) = ty.kind
@@ -715,14 +726,14 @@ fn is_default_equivalent_from(cx: &LateContext<'_>, from_func: &Expr<'_>, arg: &
             ExprKind::Lit(hir::Lit {
                 node: LitKind::Str(sym, _),
                 ..
-            }) => return sym.is_empty() && cx.tcx.lang_items().string() == Some(ty_did),
-            ExprKind::Array([]) => return cx.tcx.is_diagnostic_item(sym::Vec, ty_did),
+            }) => return sym.is_empty() && tcx.lang_items().string() == Some(ty_did),
+            ExprKind::Array([]) => return tcx.is_diagnostic_item(sym::Vec, ty_did),
             ExprKind::Repeat(_, len) => {
                 if let ConstArgKind::Anon(anon_const) = len.kind
-                    && let ExprKind::Lit(const_lit) = cx.tcx.hir_body(anon_const.body).value.kind
+                    && let ExprKind::Lit(const_lit) = tcx.hir_body(anon_const.body).value.kind
                     && let LitKind::Int(v, _) = const_lit.node
                 {
-                    return v == 0 && cx.tcx.is_diagnostic_item(sym::Vec, ty_did);
+                    return v == 0 && tcx.is_diagnostic_item(sym::Vec, ty_did);
                 }
             },
             _ => (),

@@ -1,5 +1,5 @@
 use clippy_utils::diagnostics::span_lint_and_then;
-use clippy_utils::ty::is_type_diagnostic_item;
+use clippy_utils::res::TyCtxtDefExt;
 use rustc_errors::Applicability;
 use rustc_hir::{Expr, ExprKind, QPath};
 use rustc_lint::LateContext;
@@ -35,7 +35,7 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>, recv: &'
 
 fn is_expr_option(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     let expr_type = cx.typeck_results().expr_ty(expr);
-    is_type_diagnostic_item(cx, expr_type, sym::Option)
+    cx.is_diag_item(expr_type, sym::Option)
 }
 
 /// Returns the string of the function call that creates the temporary.

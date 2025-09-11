@@ -254,7 +254,7 @@ fn check_replace_with_default(
         // disable lint for primitives
         && let expr_type = cx.typeck_results().expr_ty_adjusted(src)
         && !is_non_aggregate_primitive_type(expr_type)
-        && is_default_equivalent(cx, src)
+        && is_default_equivalent(cx.tcx, cx.typing_env(), cx.typeck_results(), src)
         && !expr.span.in_external_macro(cx.tcx.sess.source_map())
         && let Some(top_crate) = std_or_core(cx)
         && msrv.meets(cx, msrvs::MEM_TAKE)

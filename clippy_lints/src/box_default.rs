@@ -55,7 +55,8 @@ impl LateLintPass<'_> for BoxDefault {
             // or that we are inside a `vec!` macro expansion
             && (expr.span.eq_ctxt(arg.span) || is_local_vec_expn(cx, arg, expr))
             // And the argument is `Default::default()` or the type is specified
-            && (is_plain_default(cx, arg_path) || (given_type(cx, expr) && is_default_equivalent(cx, arg)))
+            && (is_plain_default(cx, arg_path)
+                || (given_type(cx, expr) && is_default_equivalent(cx.tcx, cx.typing_env(), cx.typeck_results(), arg)))
         {
             span_lint_and_sugg(
                 cx,

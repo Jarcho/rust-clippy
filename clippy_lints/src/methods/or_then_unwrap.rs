@@ -1,7 +1,6 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::res::PathRes;
+use clippy_utils::res::{PathRes, TyCtxtDefExt};
 use clippy_utils::source::snippet_with_applicability;
-use clippy_utils::ty::is_type_diagnostic_item;
 use rustc_errors::Applicability;
 use rustc_hir::lang_items::LangItem;
 use rustc_hir::{Expr, ExprKind};
@@ -21,14 +20,14 @@ pub(super) fn check<'tcx>(
     let title;
     let or_arg_content: Span;
 
-    if is_type_diagnostic_item(cx, ty, sym::Option) {
+    if cx.is_diag_item(ty, sym::Option) {
         title = "found `.or(Some(…)).unwrap()`";
         if let Some(content) = get_content_if_ctor_matches(cx, or_arg, LangItem::OptionSome) {
             or_arg_content = content;
         } else {
             return;
         }
-    } else if is_type_diagnostic_item(cx, ty, sym::Result) {
+    } else if cx.is_diag_item(ty, sym::Result) {
         title = "found `.or(Ok(…)).unwrap()`";
         if let Some(content) = get_content_if_ctor_matches(cx, or_arg, LangItem::ResultOk) {
             or_arg_content = content;

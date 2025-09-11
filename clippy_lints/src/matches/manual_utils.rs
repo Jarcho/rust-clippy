@@ -1,9 +1,9 @@
 use crate::map_unit_fn::OPTION_MAP_UNIT_FN;
 use crate::matches::MATCH_AS_REF;
-use clippy_utils::res::PathRes;
+use clippy_utils::res::{PathRes, TyCtxtDefExt};
 use clippy_utils::source::{snippet_with_applicability, snippet_with_context};
 use clippy_utils::sugg::Sugg;
-use clippy_utils::ty::{is_copy, is_type_diagnostic_item, peel_mid_ty_refs_is_mutable, type_is_unsafe_function};
+use clippy_utils::ty::{is_copy, peel_mid_ty_refs_is_mutable, type_is_unsafe_function};
 use clippy_utils::{
     CaptureKind, can_move_expr_to_closure, expr_requires_coercion, is_else_clause, is_lint_allowed, path_to_local_id,
     peel_blocks, peel_hir_expr_refs, peel_hir_expr_while,
@@ -33,9 +33,7 @@ where
 {
     let (scrutinee_ty, ty_ref_count, ty_mutability) =
         peel_mid_ty_refs_is_mutable(cx.typeck_results().expr_ty(scrutinee));
-    if !(is_type_diagnostic_item(cx, scrutinee_ty, sym::Option)
-        && is_type_diagnostic_item(cx, cx.typeck_results().expr_ty(expr), sym::Option))
-    {
+    if !matches!(cx.opt_diag_name(scrutinee_ty), Some(sym::Option | sym::Result)) {
         return None;
     }
 

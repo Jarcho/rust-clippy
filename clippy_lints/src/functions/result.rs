@@ -1,4 +1,5 @@
 use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::res::TyCtxtDefExt;
 use rustc_errors::Diag;
 use rustc_hir as hir;
 use rustc_lint::{LateContext, LintContext};
@@ -6,7 +7,7 @@ use rustc_middle::ty::{self, Ty};
 use rustc_span::{Span, sym};
 
 use clippy_utils::diagnostics::{span_lint_and_help, span_lint_and_then};
-use clippy_utils::ty::{AdtVariantInfo, approx_ty_size, is_type_diagnostic_item};
+use clippy_utils::ty::{AdtVariantInfo, approx_ty_size};
 use clippy_utils::{is_no_std_crate, trait_ref_of_method};
 
 use super::{RESULT_LARGE_ERR, RESULT_UNIT_ERR};
@@ -24,8 +25,8 @@ fn result_err_ty<'tcx>(
         && let ty = cx
             .tcx
             .instantiate_bound_regions_with_erased(cx.tcx.fn_sig(id).instantiate_identity().output())
-        && is_type_diagnostic_item(cx, ty, sym::Result)
-        && let ty::Adt(_, args) = ty.kind()
+        && let ty::Adt(adt, args) = *ty.kind()
+        && cx.is_diag_item(adt, sym::Result)
     {
         let err_ty = args.type_at(1);
         Some((hir_ty, err_ty))

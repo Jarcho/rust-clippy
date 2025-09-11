@@ -1,12 +1,11 @@
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_and_then};
-use clippy_utils::res::PathRes;
+use clippy_utils::res::{PathRes, TyCtxtDefExt};
 use clippy_utils::ty::implements_trait;
 use clippy_utils::{is_diag_trait_item, is_from_proc_macro, last_path_segment, std_or_core};
 use rustc_errors::Applicability;
-use rustc_hir::def_id::LocalDefId;
 use rustc_hir::{Expr, ExprKind, ImplItem, ImplItemKind, LangItem, Node, UnOp};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
-use rustc_middle::ty::EarlyBinder;
+use rustc_middle::ty::{EarlyBinder, TypeckResults};
 use rustc_session::declare_lint_pass;
 use rustc_span::sym;
 use rustc_span::symbol::kw;
@@ -254,17 +253,17 @@ fn expr_is_cmp<'tcx>(
     impl_item: &ImplItem<'_>,
     needs_fully_qualified: &mut bool,
 ) -> bool {
-    let impl_item_did = impl_item.owner_id.def_id;
     if let ExprKind::Call(callee, [cmp_expr]) = expr.kind {
-        cx.is_path_lang_ctor(callee, LangItem::OptionSome)
+        let typeck = cx.tcx.typeck(impl_item.owner_id.def_id);
+        cx.is_lang_ctor(typeck.path_def(callee), LangItem::OptionSome)
             // Fix #11178, allow `Self::cmp(self, ..)` too
-            && self_cmp_call(cx, cmp_expr, impl_item_did, needs_fully_qualified)
+            && self_cmp_call(cx, typeck, cmp_expr, needs_fully_qualified)
     } else if let ExprKind::MethodCall(_, recv, [], _) = expr.kind {
-        cx.tcx
-            .typeck(impl_item_did)
+        let typeck = cx.tcx.typeck(impl_item.owner_id.def_id);
+        typeck
             .type_dependent_def_id(expr.hir_id)
             .is_some_and(|def_id| is_diag_trait_item(cx, def_id, sym::Into))
-            && self_cmp_call(cx, recv, impl_item_did, needs_fully_qualified)
+            && self_cmp_call(cx, typeck, recv, needs_fully_qualified)
     } else {
         false
     }
@@ -273,12 +272,12 @@ fn expr_is_cmp<'tcx>(
 /// Returns whether this is any of `self.cmp(..)`, `Self::cmp(self, ..)` or `Ord::cmp(self, ..)`.
 fn self_cmp_call<'tcx>(
     cx: &LateContext<'tcx>,
+    typeck: &'tcx TypeckResults<'tcx>,
     cmp_expr: &'tcx Expr<'tcx>,
-    def_id: LocalDefId,
     needs_fully_qualified: &mut bool,
 ) -> bool {
     match cmp_expr.kind {
-        ExprKind::Call(path, [_, _]) => cx.is_path_diag_item(path, sym::ord_cmp_method),
+        ExprKind::Call(path, [_, _]) => cx.is_diag_item(typeck.path_def_id(path), sym::ord_cmp_method),
         ExprKind::MethodCall(_, recv, [_], ..) => {
             let ExprKind::Path(path) = recv.kind else {
                 return false;
@@ -291,13 +290,7 @@ fn self_cmp_call<'tcx>(
             // `else` branch, it must be a method named `cmp` that isn't `Ord::cmp`
             *needs_fully_qualified = true;
 
-            // It's a bit annoying but `typeck_results` only gives us the CURRENT body, which we
-            // have none, not of any `LocalDefId` we want, so we must call the query itself to avoid
-            // an immediate ICE
-            cx.tcx
-                .typeck(def_id)
-                .type_dependent_def_id(cmp_expr.hir_id)
-                .is_some_and(|def_id| cx.tcx.is_diagnostic_item(sym::ord_cmp_method, def_id))
+            cx.is_diag_item(typeck.type_dependent_def_id(cmp_expr.hir_id), sym::ord_cmp_method)
         },
         _ => false,
     }

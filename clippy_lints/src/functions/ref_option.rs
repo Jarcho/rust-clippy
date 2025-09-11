@@ -1,8 +1,8 @@
 use crate::functions::REF_OPTION;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::is_trait_impl_item;
+use clippy_utils::res::TyCtxtDefExt;
 use clippy_utils::source::snippet;
-use clippy_utils::ty::is_type_diagnostic_item;
 use rustc_errors::Applicability;
 use rustc_hir as hir;
 use rustc_hir::intravisit::FnKind;
@@ -13,9 +13,9 @@ use rustc_span::def_id::LocalDefId;
 use rustc_span::{Span, sym};
 
 fn check_ty<'a>(cx: &LateContext<'a>, param: &rustc_hir::Ty<'a>, param_ty: Ty<'a>, fixes: &mut Vec<(Span, String)>) {
-    if let ty::Ref(_, opt_ty, Mutability::Not) = param_ty.kind()
-        && is_type_diagnostic_item(cx, *opt_ty, sym::Option)
-        && let ty::Adt(_, opt_gen_args) = opt_ty.kind()
+    if let ty::Ref(_, opt_ty, Mutability::Not) = *param_ty.kind()
+        && let ty::Adt(adt, opt_gen_args) = *opt_ty.kind()
+        && cx.is_diag_item(adt, sym::Option)
         && let [gen_arg] = opt_gen_args.as_slice()
         && let GenericArgKind::Type(gen_ty) = gen_arg.kind()
         && !gen_ty.is_ref()

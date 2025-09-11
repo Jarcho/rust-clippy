@@ -1,7 +1,7 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_help;
+use clippy_utils::res::TyCtxtDefExt;
 use clippy_utils::source::{IntoSpan, SpanRangeExt};
-use clippy_utils::ty::is_type_diagnostic_item;
 use clippy_utils::visitors::for_each_expr_without_closures;
 use clippy_utils::{LimitStack, get_async_fn_body, is_async_fn, sym};
 use core::ops::ControlFlow;
@@ -93,11 +93,10 @@ impl CognitiveComplexity {
         });
 
         let ret_ty = cx.typeck_results().node_type(expr.hir_id);
-        let ret_adjust = if is_type_diagnostic_item(cx, ret_ty, sym::Result) {
+        let ret_adjust = if cx.is_diag_item(ret_ty, sym::Result) {
             returns
         } else {
-            #[expect(clippy::integer_division)]
-            (returns / 2)
+            returns / 2
         };
 
         // prevent degenerate cases where unreachable code contains `return` statements
