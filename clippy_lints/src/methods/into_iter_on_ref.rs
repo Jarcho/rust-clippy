@@ -1,8 +1,8 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::is_trait_method;
+use clippy_utils::res::PathRes;
 use clippy_utils::ty::has_iter_method;
 use rustc_errors::Applicability;
-use rustc_hir as hir;
+use rustc_hir::{self as hir, LangItem};
 use rustc_lint::LateContext;
 use rustc_middle::ty::{self, Ty};
 use rustc_span::Span;
@@ -20,7 +20,7 @@ pub(super) fn check(
     let self_ty = cx.typeck_results().expr_ty_adjusted(receiver);
     if let ty::Ref(..) = self_ty.kind()
         && method_name == sym::into_iter
-        && is_trait_method(cx, expr, sym::IntoIterator)
+        && cx.is_type_dependent_lang_item(expr, LangItem::IntoIterIntoIter)
         && let Some((kind, method_name)) = ty_has_iter_method(cx, self_ty)
     {
         span_lint_and_sugg(

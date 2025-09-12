@@ -1,14 +1,12 @@
 use clippy_utils::diagnostics::{span_lint_and_help, span_lint_and_sugg, span_lint_and_then};
-use clippy_utils::res::TyCtxtDefExt;
+use clippy_utils::res::{PathRes, TyCtxtDefExt};
 use clippy_utils::source::{snippet, snippet_with_context};
 use clippy_utils::sugg::{DiagExt as _, Sugg};
 use clippy_utils::ty::{is_copy, same_type_and_consts};
-use clippy_utils::{
-    get_parent_expr, is_inherent_method_call, is_trait_item, is_trait_method, is_ty_alias, path_to_local, sym,
-};
+use clippy_utils::{get_parent_expr, is_trait_item, is_ty_alias, path_to_local, sym};
 use rustc_errors::Applicability;
 use rustc_hir::def_id::DefId;
-use rustc_hir::{BindingMode, Expr, ExprKind, HirId, MatchSource, Mutability, Node, PatKind};
+use rustc_hir::{BindingMode, Expr, ExprKind, HirId, LangItem, MatchSource, Mutability, Node, PatKind};
 use rustc_infer::infer::TyCtxtInferExt;
 use rustc_infer::traits::Obligation;
 use rustc_lint::{LateContext, LateLintPass};
@@ -134,8 +132,8 @@ fn into_iter_bound<'tcx>(
 /// Extracts the receiver of a `.into_iter()` method call.
 fn into_iter_call<'hir>(cx: &LateContext<'_>, expr: &'hir Expr<'hir>) -> Option<&'hir Expr<'hir>> {
     if let ExprKind::MethodCall(name, recv, [], _) = expr.kind
-        && is_trait_method(cx, expr, sym::IntoIterator)
         && name.ident.name == sym::into_iter
+        && cx.is_type_dependent_lang_item(expr, LangItem::IntoIterIntoIter)
     {
         Some(recv)
     } else {
@@ -181,7 +179,7 @@ impl<'tcx> LateLintPass<'tcx> for UselessConversion {
                 if matches!(
                     path.ident.name,
                     sym::map | sym::map_err | sym::map_break | sym::map_continue
-                ) && has_eligible_receiver(cx, recv, e)
+                ) && has_eligible_receiver(cx, e)
                     && (is_trait_item(cx, arg, sym::Into) || is_trait_item(cx, arg, sym::From))
                     && let ty::FnDef(_, args) = cx.typeck_results().expr_ty(arg).kind()
                     && let &[from_ty, to_ty] = args.into_type_list(cx.tcx).as_slice()
@@ -205,7 +203,7 @@ impl<'tcx> LateLintPass<'tcx> for UselessConversion {
             },
 
             ExprKind::MethodCall(name, recv, [], _) => {
-                if is_trait_method(cx, e, sym::Into) && name.ident.name == sym::into {
+                if name.ident.name == sym::into && cx.is_type_dependent_assoc_of_diag_item(e, sym::Into) {
                     let a = cx.typeck_results().expr_ty(e);
                     let b = cx.typeck_results().expr_ty(recv);
                     if same_type_and_consts(a, b) {
@@ -365,8 +363,8 @@ impl<'tcx> LateLintPass<'tcx> for UselessConversion {
                         );
                     }
                 }
-                if is_trait_method(cx, e, sym::TryInto)
-                    && name.ident.name == sym::try_into
+                if name.ident.name == sym::try_into
+                    && cx.is_type_dependent_assoc_of_diag_item(e, sym::TryInto)
                     && let ty::Adt(adt, args) = cx.typeck_results().expr_ty(e).kind()
                     && let recv_ty = cx.typeck_results().expr_ty(recv)
                     && cx.is_diag_item(adt, sym::Result)
@@ -438,14 +436,15 @@ impl<'tcx> LateLintPass<'tcx> for UselessConversion {
     }
 }
 
-fn has_eligible_receiver(cx: &LateContext<'_>, recv: &Expr<'_>, expr: &Expr<'_>) -> bool {
-    if is_inherent_method_call(cx, expr) {
-        matches!(
-            cx.opt_diag_name(cx.typeck_results().expr_ty(recv)),
-            Some(sym::Option | sym::Result | sym::ControlFlow)
-        )
+fn has_eligible_receiver(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
+    if let Some(parent_id) = cx.assoc_parent_id(cx.type_dependent_def(expr.hir_id)) {
+        if let Some(ty) = cx.opt_impl_ty(parent_id) {
+            matches!(cx.opt_diag_name(ty), Some(sym::Option | sym::Result | sym::ControlFlow))
+        } else {
+            cx.is_diag_item(parent_id, sym::Iterator)
+        }
     } else {
-        is_trait_method(cx, expr, sym::Iterator)
+        false
     }
 }
 

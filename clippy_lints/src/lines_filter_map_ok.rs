@@ -2,9 +2,9 @@ use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::msrvs::{self, Msrv};
 use clippy_utils::res::{PathRes, TyCtxtDefExt};
-use clippy_utils::{is_trait_method, path_to_local_id, sym};
+use clippy_utils::{path_to_local_id, sym};
 use rustc_errors::Applicability;
-use rustc_hir::{Body, Closure, Expr, ExprKind};
+use rustc_hir::{Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::Symbol;
@@ -73,7 +73,7 @@ impl_lint_pass!(LinesFilterMapOk => [LINES_FILTER_MAP_OK]);
 impl LateLintPass<'_> for LinesFilterMapOk {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &Expr<'_>) {
         if let ExprKind::MethodCall(fm_method, fm_receiver, fm_args, fm_span) = expr.kind
-            && is_trait_method(cx, expr, sym::Iterator)
+            && cx.is_type_dependent_assoc_of_diag_item(expr, sym::Iterator)
             && let fm_method_name = fm_method.ident.name
             && matches!(fm_method_name, sym::filter_map | sym::flat_map | sym::flatten)
             && cx.is_diag_item(cx.typeck_results().expr_ty_adjusted(fm_receiver), sym::IoLines)
@@ -105,25 +105,21 @@ fn should_lint(cx: &LateContext<'_>, args: &[Expr<'_>], method_name: Symbol) -> 
     match args {
         [] => method_name == sym::flatten,
         [fm_arg] => {
-            match &fm_arg.kind {
+            match fm_arg.kind {
                 // Detect `Result::ok`
-                ExprKind::Path(qpath) => cx
+                ExprKind::Path(ref qpath) => cx
                     .qpath_res(qpath, fm_arg.hir_id)
                     .opt_def_id()
                     .is_some_and(|did| cx.tcx.is_diagnostic_item(sym::result_ok_method, did)),
                 // Detect `|x| x.ok()`
-                ExprKind::Closure(Closure { body, .. }) => {
-                    if let Body {
-                        params: [param], value, ..
-                    } = cx.tcx.hir_body(*body)
-                        && let ExprKind::MethodCall(method, receiver, [], _) = value.kind
+                ExprKind::Closure(closure)
+                    if let body = cx.tcx.hir_body(closure.body)
+                        && let [param] = body.params
+                        && let ExprKind::MethodCall(method, receiver, [], _) = body.value.kind
                         && method.ident.name == sym::ok
-                        && path_to_local_id(receiver, param.pat.hir_id)
-                    {
-                        cx.is_assoc_of_diag_ty(cx.type_dependent_def(value.hir_id), sym::Result)
-                    } else {
-                        false
-                    }
+                        && path_to_local_id(receiver, param.pat.hir_id) =>
+                {
+                    cx.is_type_dependent_assoc_of_diag_ty(body.value, sym::Result)
                 },
                 _ => false,
             }

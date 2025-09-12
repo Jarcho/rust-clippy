@@ -5,7 +5,7 @@ use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::res::PathRes;
 use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::visitors::is_res_used;
-use clippy_utils::{get_enclosing_loop_or_multi_call_closure, higher, is_refutable, is_trait_method};
+use clippy_utils::{get_enclosing_loop_or_multi_call_closure, higher, is_refutable};
 use rustc_errors::Applicability;
 use rustc_hir::def::Res;
 use rustc_hir::intravisit::{Visitor, walk_expr};
@@ -24,7 +24,7 @@ pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         // check for call to `Iterator::next`
         && let ExprKind::MethodCall(method_name, iter_expr, [], _) = let_expr.kind
         && method_name.ident.name == sym::next
-        && is_trait_method(cx, let_expr, sym::Iterator)
+        && cx.is_type_dependent_assoc_of_diag_item(let_expr, sym::Iterator)
         && let Some(iter_expr_struct) = try_parse_iter_expr(cx, iter_expr)
         // get the loop containing the match expression
         && !uses_iter(cx, &iter_expr_struct, if_then)

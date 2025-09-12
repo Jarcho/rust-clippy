@@ -4,7 +4,7 @@ use clippy_utils::res::PathRes;
 use clippy_utils::ty::is_copy;
 use clippy_utils::usage::mutated_variables;
 use clippy_utils::visitors::{Descend, for_each_expr_without_closures};
-use clippy_utils::{is_trait_method, path_to_local_id, sym};
+use clippy_utils::{path_to_local_id, sym};
 use core::ops::ControlFlow;
 use rustc_hir as hir;
 use rustc_hir::LangItem::{OptionNone, OptionSome};
@@ -20,7 +20,7 @@ pub(super) fn check<'tcx>(
     arg: &'tcx hir::Expr<'tcx>,
     name: Symbol,
 ) {
-    if !is_trait_method(cx, expr, sym::Iterator) {
+    if !cx.is_type_dependent_assoc_of_diag_item(expr, sym::Iterator) {
         return;
     }
 

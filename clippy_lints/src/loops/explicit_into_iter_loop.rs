@@ -1,6 +1,6 @@
 use super::EXPLICIT_INTO_ITER_LOOP;
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::is_trait_method;
+use clippy_utils::res::PathRes;
 use clippy_utils::source::snippet_with_context;
 use rustc_errors::Applicability;
 use rustc_hir::Expr;
@@ -43,7 +43,7 @@ impl AdjustKind {
 }
 
 pub(super) fn check(cx: &LateContext<'_>, self_arg: &Expr<'_>, call_expr: &Expr<'_>) {
-    if !is_trait_method(cx, call_expr, sym::IntoIterator) {
+    if !cx.is_type_dependent_assoc_of_diag_item(call_expr, sym::IntoIterator) {
         return;
     }
 

@@ -354,11 +354,6 @@ pub fn is_inherent_method_call(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     }
 }
 
-/// Checks if the method call given in `expr` belongs to the given trait.
-pub fn is_trait_method(cx: &LateContext<'_>, expr: &Expr<'_>, diag_item: Symbol) -> bool {
-    cx.is_type_dependent_assoc_of_diag_item(expr, diag_item)
-}
-
 /// Checks if the `def_id` belongs to a function that is part of a trait impl.
 pub fn is_def_id_trait_method(cx: &LateContext<'_>, def_id: LocalDefId) -> bool {
     if let Node::Item(item) = cx.tcx.parent_hir_node(cx.tcx.local_def_id_to_hir_id(def_id))

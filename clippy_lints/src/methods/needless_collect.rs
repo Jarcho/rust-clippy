@@ -2,13 +2,12 @@ use std::ops::ControlFlow;
 
 use super::NEEDLESS_COLLECT;
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_hir_and_then};
-use clippy_utils::res::TyCtxtDefExt;
+use clippy_utils::res::{PathRes, TyCtxtDefExt};
 use clippy_utils::source::{snippet, snippet_with_applicability};
 use clippy_utils::sugg::Sugg;
 use clippy_utils::ty::{has_non_owning_mutable_access, make_normalized_projection, make_projection};
 use clippy_utils::{
-    CaptureKind, can_move_expr_to_closure, fn_def_id, get_enclosing_block, higher, is_trait_method, path_to_local,
-    path_to_local_id, sym,
+    CaptureKind, can_move_expr_to_closure, fn_def_id, get_enclosing_block, higher, path_to_local, path_to_local_id, sym,
 };
 use rustc_data_structures::fx::FxHashMap;
 use rustc_errors::{Applicability, MultiSpan};
@@ -338,7 +337,7 @@ impl<'tcx> Visitor<'tcx> for IterFunctionVisitor<'_, 'tcx> {
         if let ExprKind::MethodCall(method_name, recv, args, _) = &expr.kind {
             if args.is_empty()
                 && method_name.ident.name == sym::collect
-                && is_trait_method(self.cx, expr, sym::Iterator)
+                && self.cx.is_type_dependent_assoc_of_diag_item(expr, sym::Iterator)
             {
                 self.current_mutably_captured_ids = get_captured_ids(self.cx, self.cx.typeck_results().expr_ty(recv));
                 self.visit_expr(recv);
@@ -549,7 +548,7 @@ impl<'tcx> Visitor<'tcx> for IteratorMethodCheckVisitor<'_, 'tcx> {
                 || self
                     .hir_id_of_let_binding
                     .is_some_and(|hid| path_to_local_id(recv, hid)))
-            && !is_trait_method(self.cx, expr, sym::Iterator)
+            && !self.cx.is_type_dependent_assoc_of_diag_item(expr, sym::Iterator)
         {
             return ControlFlow::Break(());
         } else if let ExprKind::Assign(place, value, _span) = &expr.kind

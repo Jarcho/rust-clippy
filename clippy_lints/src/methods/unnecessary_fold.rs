@@ -1,6 +1,7 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
+use clippy_utils::res::PathRes;
 use clippy_utils::source::snippet_with_applicability;
-use clippy_utils::{is_trait_method, path_to_local_id, peel_blocks, strip_pat_refs};
+use clippy_utils::{path_to_local_id, peel_blocks, strip_pat_refs};
 use rustc_ast::ast;
 use rustc_data_structures::packed::Pu128;
 use rustc_errors::Applicability;
@@ -115,7 +116,7 @@ pub(super) fn check(
     fold_span: Span,
 ) {
     // Check that this is a call to Iterator::fold rather than just some function called fold
-    if !is_trait_method(cx, expr, sym::Iterator) {
+    if !cx.is_type_dependent_assoc_of_diag_item(expr, sym::Iterator) {
         return;
     }
 

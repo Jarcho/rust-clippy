@@ -1,6 +1,7 @@
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::span_lint_and_then;
-use clippy_utils::{is_from_proc_macro, is_trait_method};
+use clippy_utils::is_from_proc_macro;
+use clippy_utils::res::PathRes;
 use rustc_errors::Applicability;
 use rustc_hir::Expr;
 use rustc_lint::LateContext;
@@ -10,7 +11,7 @@ use super::ITER_SKIP_ZERO;
 
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>, arg_expr: &Expr<'_>) {
     if !expr.span.from_expansion()
-        && is_trait_method(cx, expr, sym::Iterator)
+        && cx.is_type_dependent_assoc_of_diag_item(expr, sym::Iterator)
         && let Some(arg) = ConstEvalCtxt::new(cx).eval(arg_expr).and_then(|constant| {
             if let Constant::Int(arg) = constant {
                 Some(arg)

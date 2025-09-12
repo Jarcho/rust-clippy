@@ -1,8 +1,9 @@
 use clippy_utils::diagnostics::{span_lint_and_help, span_lint_and_sugg};
+use clippy_utils::res::PathRes;
 use clippy_utils::source::{snippet, snippet_with_applicability};
 use clippy_utils::sugg::deref_closure_args;
 use clippy_utils::ty::is_ty_str_string;
-use clippy_utils::{is_receiver_of_method_call, is_trait_method, strip_pat_refs, sym};
+use clippy_utils::{is_receiver_of_method_call, strip_pat_refs, sym};
 use hir::ExprKind;
 use rustc_errors::Applicability;
 use rustc_hir as hir;
@@ -27,7 +28,7 @@ pub(super) fn check<'tcx>(
 ) {
     let option_check_method = if is_some { "is_some" } else { "is_none" };
     // lint if caller of search is an Iterator
-    if is_trait_method(cx, is_some_recv, sym::Iterator) {
+    if cx.is_type_dependent_assoc_of_diag_item(is_some_recv, sym::Iterator) {
         let msg = format!("called `{option_check_method}()` after searching an `Iterator` with `{search_method}`");
         let search_snippet = snippet(cx, search_arg.span, "..");
         if search_snippet.lines().count() <= 1 {

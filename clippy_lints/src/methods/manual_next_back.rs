@@ -1,5 +1,5 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::is_trait_method;
+use clippy_utils::res::PathRes;
 use clippy_utils::ty::implements_trait;
 use rustc_errors::Applicability;
 use rustc_hir::Expr;
@@ -20,8 +20,8 @@ pub(super) fn check<'tcx>(
         .tcx
         .get_diagnostic_item(sym::DoubleEndedIterator)
         .is_some_and(|double_ended_iterator| implements_trait(cx, rev_recv_ty, double_ended_iterator, &[]))
-        && is_trait_method(cx, rev_call, sym::Iterator)
-        && is_trait_method(cx, expr, sym::Iterator)
+        && cx.is_type_dependent_assoc_of_diag_item(rev_call, sym::Iterator)
+        && cx.is_type_dependent_assoc_of_diag_item(expr, sym::Iterator)
     {
         span_lint_and_sugg(
             cx,

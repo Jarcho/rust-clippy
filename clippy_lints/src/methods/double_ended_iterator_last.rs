@@ -1,6 +1,7 @@
 use clippy_utils::diagnostics::span_lint_and_then;
+use clippy_utils::res::PathRes;
 use clippy_utils::ty::{has_non_owning_mutable_access, implements_trait};
-use clippy_utils::{is_mutable, is_trait_method, path_to_local_with_projections, sym};
+use clippy_utils::{is_mutable, path_to_local_with_projections, sym};
 use rustc_errors::Applicability;
 use rustc_hir::{Expr, Node, PatKind};
 use rustc_lint::LateContext;
@@ -13,7 +14,7 @@ pub(super) fn check(cx: &LateContext<'_>, expr: &'_ Expr<'_>, self_expr: &'_ Exp
     let typeck = cx.typeck_results();
 
     // if the "last" method is that of Iterator
-    if is_trait_method(cx, expr, sym::Iterator)
+    if cx.is_type_dependent_assoc_of_diag_item(expr, sym::Iterator)
         // if self implements DoubleEndedIterator
         && let Some(deiter_id) = cx.tcx.get_diagnostic_item(sym::DoubleEndedIterator)
         && let self_type = cx.typeck_results().expr_ty(self_expr)

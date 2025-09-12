@@ -7,9 +7,7 @@ use clippy_utils::res::{PathRes, TyCtxtDefExt};
 use clippy_utils::sugg::Sugg;
 use clippy_utils::ty::implements_trait;
 use clippy_utils::visitors::is_const_evaluatable;
-use clippy_utils::{
-    eq_expr_value, is_in_const_context, is_trait_method, path_to_local_id, peel_blocks, peel_blocks_with_stmt, sym,
-};
+use clippy_utils::{eq_expr_value, is_in_const_context, path_to_local_id, peel_blocks, peel_blocks_with_stmt, sym};
 use itertools::Itertools;
 use rustc_errors::{Applicability, Diag};
 use rustc_hir::def::Res;
@@ -292,10 +290,12 @@ fn is_if_elseif_else_pattern<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx
 /// # ;
 /// ```
 fn is_max_min_pattern<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) -> Option<ClampSuggestion<'tcx>> {
-    if let ExprKind::MethodCall(seg_second, receiver, [arg_second], _) = &expr.kind
-        && (cx.typeck_results().expr_ty_adjusted(receiver).is_floating_point() || is_trait_method(cx, expr, sym::Ord))
-        && let ExprKind::MethodCall(seg_first, input, [arg_first], _) = &receiver.kind
-        && (cx.typeck_results().expr_ty_adjusted(input).is_floating_point() || is_trait_method(cx, receiver, sym::Ord))
+    if let ExprKind::MethodCall(seg_second, receiver, [arg_second], _) = expr.kind
+        && (cx.typeck_results().expr_ty_adjusted(receiver).is_floating_point()
+            || cx.is_type_dependent_assoc_of_diag_item(expr, sym::Ord))
+        && let ExprKind::MethodCall(seg_first, input, [arg_first], _) = receiver.kind
+        && (cx.typeck_results().expr_ty_adjusted(input).is_floating_point()
+            || cx.is_type_dependent_assoc_of_diag_item(receiver, sym::Ord))
     {
         let is_float = cx.typeck_results().expr_ty_adjusted(input).is_floating_point();
         let (min, max) = match (seg_first.ident.name, seg_second.ident.name) {
