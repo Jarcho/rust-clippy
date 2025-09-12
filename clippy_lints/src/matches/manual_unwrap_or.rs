@@ -9,9 +9,9 @@ use rustc_middle::ty::{GenericArgKind, Ty};
 use rustc_span::sym;
 
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::res::PathRes;
+use clippy_utils::res::{PathRes, TyCtxtDefExt};
 use clippy_utils::sugg::Sugg;
-use clippy_utils::ty::{expr_type_is_certain, get_type_diagnostic_name, implements_trait};
+use clippy_utils::ty::{expr_type_is_certain, implements_trait};
 use clippy_utils::{is_default_equivalent, is_lint_allowed, peel_blocks, span_contains_comment};
 
 use super::{MANUAL_UNWRAP_OR, MANUAL_UNWRAP_OR_DEFAULT};
@@ -172,7 +172,7 @@ fn handle(
 }
 
 fn find_type_name<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>) -> Option<&'static str> {
-    match get_type_diagnostic_name(cx, ty)? {
+    match cx.opt_diag_name(ty)? {
         sym::Option => Some("Option"),
         sym::Result => Some("Result"),
         _ => None,
