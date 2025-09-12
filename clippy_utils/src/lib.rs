@@ -356,19 +356,6 @@ pub fn is_def_id_trait_method(cx: &LateContext<'_>, def_id: LocalDefId) -> bool 
     }
 }
 
-/// Checks if the given expression is a path referring an item on the trait
-/// that is marked with the given diagnostic item.
-///
-/// For checking method call expressions instead of path expressions, use
-/// [`is_trait_method`].
-///
-/// For example, this can be used to find if an expression like `u64::default`
-/// refers to an item of the trait `Default`, which is associated with the
-/// `diag_item` of `sym::Default`.
-pub fn is_trait_item(cx: &LateContext<'_>, expr: &Expr<'_>, diag_item: Symbol) -> bool {
-    cx.is_assoc_of_diag_item(cx.path_def(expr), diag_item)
-}
-
 pub fn last_path_segment<'tcx>(path: &QPath<'tcx>) -> &'tcx PathSegment<'tcx> {
     match *path {
         QPath::Resolved(_, path) => path.segments.last().expect("A path must have at least one segment"),

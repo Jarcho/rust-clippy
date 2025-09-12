@@ -3,7 +3,7 @@ use clippy_utils::res::{PathRes, TyCtxtDefExt};
 use clippy_utils::source::{snippet, snippet_with_context};
 use clippy_utils::sugg::{DiagExt as _, Sugg};
 use clippy_utils::ty::{is_copy, same_type_and_consts};
-use clippy_utils::{get_parent_expr, is_trait_item, is_ty_alias, path_to_local, sym};
+use clippy_utils::{get_parent_expr, is_ty_alias, path_to_local, sym};
 use rustc_errors::Applicability;
 use rustc_hir::def_id::DefId;
 use rustc_hir::{BindingMode, Expr, ExprKind, HirId, LangItem, MatchSource, Mutability, Node, PatKind};
@@ -180,7 +180,7 @@ impl<'tcx> LateLintPass<'tcx> for UselessConversion {
                     path.ident.name,
                     sym::map | sym::map_err | sym::map_break | sym::map_continue
                 ) && has_eligible_receiver(cx, e)
-                    && (is_trait_item(cx, arg, sym::Into) || is_trait_item(cx, arg, sym::From))
+                    && matches!(cx.assoc_parent_diag_name(cx.path_res(arg)), Some(sym::Into | sym::From))
                     && let ty::FnDef(_, args) = cx.typeck_results().expr_ty(arg).kind()
                     && let &[from_ty, to_ty] = args.into_type_list(cx.tcx).as_slice()
                     && same_type_and_consts(from_ty, to_ty)
