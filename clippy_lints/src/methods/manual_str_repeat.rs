@@ -2,6 +2,7 @@ use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::res::{PathRes, TyCtxtDefExt};
 use clippy_utils::source::{snippet_with_applicability, snippet_with_context};
 use clippy_utils::sugg::Sugg;
+use clippy_utils::ty::is_ty_str_string;
 use rustc_ast::LitKind;
 use rustc_errors::Applicability;
 use rustc_hir::{Expr, ExprKind, LangItem};
@@ -40,8 +41,7 @@ fn parse_repeat_arg(cx: &LateContext<'_>, e: &Expr<'_>) -> Option<RepeatKind> {
         {
             Some(RepeatKind::String)
         } else {
-            let ty = ty.peel_refs();
-            (ty.is_str() || cx.is_lang_item(ty, LangItem::String)).then_some(RepeatKind::String)
+            is_ty_str_string(cx.tcx, ty.peel_refs()).then_some(RepeatKind::String)
         }
     }
 }

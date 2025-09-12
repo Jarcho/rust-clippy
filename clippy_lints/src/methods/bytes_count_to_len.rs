@@ -1,6 +1,6 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::res::TyCtxtDefExt;
 use clippy_utils::source::snippet_with_applicability;
+use clippy_utils::ty::is_ty_str_string;
 use rustc_errors::Applicability;
 use rustc_hir as hir;
 use rustc_lint::LateContext;
@@ -16,8 +16,7 @@ pub(super) fn check<'tcx>(
     if let Some(bytes_id) = cx.typeck_results().type_dependent_def_id(count_recv.hir_id)
         && let Some(impl_id) = cx.tcx.impl_of_assoc(bytes_id)
         && cx.tcx.type_of(impl_id).instantiate_identity().is_str()
-        && let ty = cx.typeck_results().expr_ty(bytes_recv).peel_refs()
-        && (ty.is_str() || cx.is_lang_item(ty, hir::LangItem::String))
+        && is_ty_str_string(cx.tcx, cx.typeck_results().expr_ty(bytes_recv).peel_refs())
     {
         let mut applicability = Applicability::MachineApplicable;
         span_lint_and_sugg(

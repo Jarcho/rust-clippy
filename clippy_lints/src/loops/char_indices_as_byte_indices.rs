@@ -1,13 +1,12 @@
 use std::ops::ControlFlow;
 
 use clippy_utils::diagnostics::span_lint_hir_and_then;
-use clippy_utils::res::TyCtxtDefExt;
+use clippy_utils::ty::is_ty_str_string;
 use clippy_utils::visitors::for_each_expr;
 use clippy_utils::{eq_expr_value, higher, path_to_local_id, sym};
 use rustc_errors::{Applicability, MultiSpan};
-use rustc_hir::{Expr, ExprKind, LangItem, Node, Pat, PatKind};
+use rustc_hir::{Expr, ExprKind, Node, Pat, PatKind};
 use rustc_lint::LateContext;
-use rustc_middle::ty::Ty;
 use rustc_span::{Span, Symbol};
 
 use super::CHAR_INDICES_AS_BYTE_INDICES;
@@ -81,7 +80,6 @@ fn check_index_usage<'tcx>(
         return;
     };
 
-    let is_string_like = |ty: Ty<'_>| ty.is_str() || cx.is_lang_item(ty, LangItem::String);
     let message = match parent_expr.kind {
         ExprKind::MethodCall(segment, recv, ..)
             // We currently only lint `str` methods (which `String` can deref to), so a `.is_str()` check is sufficient here
@@ -94,7 +92,7 @@ fn check_index_usage<'tcx>(
             "passing a character position to a method that expects a byte index"
         },
         ExprKind::Index(target, ..)
-            if is_string_like(cx.typeck_results().expr_ty_adjusted(target).peel_refs())
+            if is_ty_str_string(cx.tcx, cx.typeck_results().expr_ty_adjusted(target).peel_refs())
                 && eq_expr_value(cx, chars_recv, target) =>
         {
             "indexing into a string with a character position where a byte index is expected"

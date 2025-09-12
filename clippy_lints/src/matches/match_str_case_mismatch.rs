@@ -1,12 +1,12 @@
 use std::ops::ControlFlow;
 
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::res::TyCtxtDefExt;
 use clippy_utils::sym;
+use clippy_utils::ty::is_ty_str_string;
 use rustc_ast::ast::LitKind;
 use rustc_errors::Applicability;
 use rustc_hir::intravisit::{Visitor, walk_expr};
-use rustc_hir::{Arm, Expr, ExprKind, LangItem, PatExpr, PatExprKind, PatKind};
+use rustc_hir::{Arm, Expr, ExprKind, PatExpr, PatExprKind, PatKind};
 use rustc_lint::LateContext;
 use rustc_middle::ty;
 use rustc_span::Span;
@@ -55,15 +55,13 @@ impl<'tcx> Visitor<'tcx> for MatchExprVisitor<'_, 'tcx> {
 
 impl MatchExprVisitor<'_, '_> {
     fn case_altered(&self, segment_ident: Symbol, receiver: &Expr<'_>) -> ControlFlow<CaseMethod> {
-        if let Some(case_method) = get_case_method(segment_ident) {
-            let ty = self.cx.typeck_results().expr_ty(receiver).peel_refs();
-
-            if self.cx.is_lang_item(ty, LangItem::String) || ty.kind() == &ty::Str {
-                return ControlFlow::Break(case_method);
-            }
+        if let Some(case_method) = get_case_method(segment_ident)
+            && is_ty_str_string(self.cx.tcx, self.cx.typeck_results().expr_ty(receiver).peel_refs())
+        {
+            ControlFlow::Break(case_method)
+        } else {
+            ControlFlow::Continue(())
         }
-
-        ControlFlow::Continue(())
     }
 }
 

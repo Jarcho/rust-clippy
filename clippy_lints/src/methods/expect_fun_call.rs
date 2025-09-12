@@ -2,6 +2,7 @@ use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::macros::{FormatArgsStorage, format_args_inputs_span, root_macro_call_first_node};
 use clippy_utils::res::TyCtxtDefExt;
 use clippy_utils::source::snippet_with_applicability;
+use clippy_utils::ty::is_ty_str_string;
 use clippy_utils::visitors::for_each_expr;
 use clippy_utils::{contains_return, is_inside_always_const_context, peel_blocks};
 use rustc_errors::Applicability;
@@ -84,9 +85,7 @@ fn get_arg_root<'a>(cx: &LateContext<'_>, arg: &'a hir::Expr<'a>) -> &'a hir::Ex
             hir::ExprKind::AddrOf(hir::BorrowKind::Ref, _, expr) => expr,
             hir::ExprKind::MethodCall(method_name, receiver, [], ..) => {
                 if (method_name.ident.name == sym::as_str || method_name.ident.name == sym::as_ref) && {
-                    let arg_type = cx.typeck_results().expr_ty(receiver);
-                    let base_type = arg_type.peel_refs();
-                    base_type.is_str() || cx.is_lang_item(base_type, hir::LangItem::String)
+                    is_ty_str_string(cx.tcx, cx.typeck_results().expr_ty(receiver).peel_refs())
                 } {
                     receiver
                 } else {

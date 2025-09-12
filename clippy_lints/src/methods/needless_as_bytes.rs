@@ -1,16 +1,15 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::res::TyCtxtDefExt;
 use clippy_utils::sugg::Sugg;
+use clippy_utils::ty::is_ty_str_string;
 use rustc_errors::Applicability;
-use rustc_hir::{Expr, LangItem};
+use rustc_hir::Expr;
 use rustc_lint::LateContext;
 use rustc_span::{Span, Symbol};
 
 use super::NEEDLESS_AS_BYTES;
 
 pub fn check(cx: &LateContext<'_>, prev_method: Symbol, method: Symbol, prev_recv: &Expr<'_>, span: Span) {
-    let ty1 = cx.typeck_results().expr_ty_adjusted(prev_recv).peel_refs();
-    if cx.is_lang_item(ty1, LangItem::String) || ty1.is_str() {
+    if is_ty_str_string(cx.tcx, cx.typeck_results().expr_ty_adjusted(prev_recv).peel_refs()) {
         let mut app = Applicability::MachineApplicable;
         let sugg = Sugg::hir_with_context(cx, prev_recv, span.ctxt(), "..", &mut app);
         span_lint_and_sugg(

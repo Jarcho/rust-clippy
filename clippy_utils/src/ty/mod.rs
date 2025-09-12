@@ -1363,3 +1363,12 @@ pub fn adjust_derefs_manually_drop<'tcx>(adjustments: &'tcx [Adjustment<'tcx>], 
         matches!(a.kind, Adjust::Deref(Some(op)) if op.mutbl == Mutability::Mut) && is_manually_drop(ty)
     })
 }
+
+/// Checks if the type is either `str` or `String`.
+pub fn is_ty_str_string(tcx: TyCtxt<'_>, ty: Ty<'_>) -> bool {
+    match *ty.kind() {
+        ty::Str => true,
+        ty::Adt(adt, _) => tcx.lang_items().string() == Some(adt.did()),
+        _ => false,
+    }
+}

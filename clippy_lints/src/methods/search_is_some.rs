@@ -1,7 +1,7 @@
 use clippy_utils::diagnostics::{span_lint_and_help, span_lint_and_sugg};
-use clippy_utils::res::TyCtxtDefExt;
 use clippy_utils::source::{snippet, snippet_with_applicability};
 use clippy_utils::sugg::deref_closure_args;
+use clippy_utils::ty::is_ty_str_string;
 use clippy_utils::{is_receiver_of_method_call, is_trait_method, strip_pat_refs, sym};
 use hir::ExprKind;
 use rustc_errors::Applicability;
@@ -106,52 +106,45 @@ pub(super) fn check<'tcx>(
         }
     }
     // lint if `find()` is called by `String` or `&str`
-    else if search_method == sym::find {
-        let is_string_or_str_slice = |e| {
-            let self_ty = cx.typeck_results().expr_ty(e).peel_refs();
-            if cx.is_lang_item(self_ty, hir::LangItem::String) {
-                true
-            } else {
-                self_ty.is_str()
-            }
-        };
-        if is_string_or_str_slice(search_recv) && is_string_or_str_slice(search_arg) {
-            let msg = format!("called `{option_check_method}()` after calling `find()` on a string");
-            match option_check_method {
-                "is_some" => {
-                    let mut applicability = Applicability::MachineApplicable;
-                    let find_arg = snippet_with_applicability(cx, search_arg.span, "..", &mut applicability);
-                    span_lint_and_sugg(
-                        cx,
-                        SEARCH_IS_SOME,
-                        method_span.with_hi(expr.span.hi()),
-                        msg,
-                        "consider using",
-                        format!("contains({find_arg})"),
-                        applicability,
-                    );
-                },
-                "is_none" => {
-                    let string = snippet(cx, search_recv.span, "..");
-                    let mut applicability = Applicability::MachineApplicable;
-                    let find_arg = snippet_with_applicability(cx, search_arg.span, "..", &mut applicability);
-                    let sugg = if is_receiver_of_method_call(cx, expr) {
-                        format!("(!{string}.contains({find_arg}))")
-                    } else {
-                        format!("!{string}.contains({find_arg})")
-                    };
-                    span_lint_and_sugg(
-                        cx,
-                        SEARCH_IS_SOME,
-                        expr.span,
-                        msg,
-                        "consider using",
-                        sugg,
-                        applicability,
-                    );
-                },
-                _ => (),
-            }
+    else if search_method == sym::find
+        && is_ty_str_string(cx.tcx, cx.typeck_results().expr_ty(search_recv).peel_refs())
+        && is_ty_str_string(cx.tcx, cx.typeck_results().expr_ty(search_arg).peel_refs())
+    {
+        let msg = format!("called `{option_check_method}()` after calling `find()` on a string");
+        match option_check_method {
+            "is_some" => {
+                let mut applicability = Applicability::MachineApplicable;
+                let find_arg = snippet_with_applicability(cx, search_arg.span, "..", &mut applicability);
+                span_lint_and_sugg(
+                    cx,
+                    SEARCH_IS_SOME,
+                    method_span.with_hi(expr.span.hi()),
+                    msg,
+                    "consider using",
+                    format!("contains({find_arg})"),
+                    applicability,
+                );
+            },
+            "is_none" => {
+                let string = snippet(cx, search_recv.span, "..");
+                let mut applicability = Applicability::MachineApplicable;
+                let find_arg = snippet_with_applicability(cx, search_arg.span, "..", &mut applicability);
+                let sugg = if is_receiver_of_method_call(cx, expr) {
+                    format!("(!{string}.contains({find_arg}))")
+                } else {
+                    format!("!{string}.contains({find_arg})")
+                };
+                span_lint_and_sugg(
+                    cx,
+                    SEARCH_IS_SOME,
+                    expr.span,
+                    msg,
+                    "consider using",
+                    sugg,
+                    applicability,
+                );
+            },
+            _ => (),
         }
     }
 }

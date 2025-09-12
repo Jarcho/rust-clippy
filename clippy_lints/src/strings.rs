@@ -1,6 +1,7 @@
 use clippy_utils::diagnostics::{span_lint, span_lint_and_sugg, span_lint_and_then};
 use clippy_utils::res::{PathRes, TyCtxtDefExt};
 use clippy_utils::source::{snippet, snippet_with_applicability};
+use clippy_utils::ty::is_ty_str_string;
 use clippy_utils::{
     SpanlessEq, get_expr_use_or_unification_node, get_parent_expr, is_lint_allowed, method_calls, peel_blocks, sym,
 };
@@ -187,7 +188,7 @@ impl<'tcx> LateLintPass<'tcx> for StringAdd {
             },
             ExprKind::Index(target, _idx, _) => {
                 let e_ty = cx.typeck_results().expr_ty_adjusted(target).peel_refs();
-                if e_ty.is_str() || cx.is_lang_item(e_ty, LangItem::String) {
+                if is_ty_str_string(cx.tcx, e_ty) {
                     span_lint(
                         cx,
                         STRING_SLICE,
