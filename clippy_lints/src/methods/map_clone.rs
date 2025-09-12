@@ -1,9 +1,9 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::msrvs::{self, Msrv};
-use clippy_utils::res::TyCtxtDefExt;
+use clippy_utils::peel_blocks;
+use clippy_utils::res::{PathRes, TyCtxtDefExt};
 use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::ty::{is_copy, should_call_clone_as_function};
-use clippy_utils::{is_diag_trait_item, peel_blocks};
 use rustc_errors::Applicability;
 use rustc_hir::def_id::DefId;
 use rustc_hir::{self as hir, LangItem};
@@ -19,32 +19,28 @@ use super::MAP_CLONE;
 // If this `map` is called on an `Option` or a `Result` and the previous call is `as_ref`, we don't
 // run this lint because it would overlap with `useless_asref` which provides a better suggestion
 // in this case.
-fn should_run_lint(cx: &LateContext<'_>, e: &hir::Expr<'_>, method_id: DefId) -> bool {
-    if is_diag_trait_item(cx, method_id, sym::Iterator) {
-        return true;
-    }
-    // We check if it's an `Option` or a `Result`.
-    if let Some(id) = cx.tcx.impl_of_assoc(method_id) {
-        let identity = cx.tcx.type_of(id).instantiate_identity();
-        if !matches!(cx.opt_diag_name(identity), Some(sym::Option | sym::Result)) {
-            return false;
+fn should_run_lint(cx: &LateContext<'_>, e: &hir::Expr<'_>, parent_id: DefId) -> bool {
+    if cx.is_diag_item(parent_id, sym::Iterator) {
+        true
+    } else if matches!(
+        cx.opt_diag_name(cx.opt_impl_ty(parent_id)),
+        Some(sym::Option | sym::Result)
+    ) {
+        // We check if the previous method call is `as_ref`.
+        if let hir::ExprKind::MethodCall(path1, receiver, _, _) = &e.kind
+            && let hir::ExprKind::MethodCall(path2, _, _, _) = &receiver.kind
+        {
+            return path2.ident.name != sym::as_ref || path1.ident.name != sym::map;
         }
+        true
     } else {
-        return false;
+        false
     }
-    // We check if the previous method call is `as_ref`.
-    if let hir::ExprKind::MethodCall(path1, receiver, _, _) = &e.kind
-        && let hir::ExprKind::MethodCall(path2, _, _, _) = &receiver.kind
-    {
-        return path2.ident.name != sym::as_ref || path1.ident.name != sym::map;
-    }
-
-    true
 }
 
 pub(super) fn check(cx: &LateContext<'_>, e: &hir::Expr<'_>, recv: &hir::Expr<'_>, arg: &hir::Expr<'_>, msrv: Msrv) {
-    if let Some(method_id) = cx.typeck_results().type_dependent_def_id(e.hir_id)
-        && should_run_lint(cx, e, method_id)
+    if let Some(parent_id) = cx.assoc_parent_id(cx.type_dependent_def(e.hir_id))
+        && should_run_lint(cx, e, parent_id)
     {
         match arg.kind {
             hir::ExprKind::Closure(&hir::Closure { body, .. }) => {

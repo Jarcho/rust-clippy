@@ -1,7 +1,7 @@
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_and_then};
 use clippy_utils::res::{PathRes, TyCtxtDefExt};
 use clippy_utils::ty::implements_trait;
-use clippy_utils::{is_diag_trait_item, is_from_proc_macro, last_path_segment, std_or_core};
+use clippy_utils::{is_from_proc_macro, last_path_segment, std_or_core};
 use rustc_errors::Applicability;
 use rustc_hir::{Expr, ExprKind, ImplItem, ImplItemKind, LangItem, Node, UnOp};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
@@ -260,9 +260,7 @@ fn expr_is_cmp<'tcx>(
             && self_cmp_call(cx, typeck, cmp_expr, needs_fully_qualified)
     } else if let ExprKind::MethodCall(_, recv, [], _) = expr.kind {
         let typeck = cx.tcx.typeck(impl_item.owner_id.def_id);
-        typeck
-            .type_dependent_def_id(expr.hir_id)
-            .is_some_and(|def_id| is_diag_trait_item(cx, def_id, sym::Into))
+        cx.is_assoc_of_diag_item(typeck.type_dependent_def(expr.hir_id), sym::Into)
             && self_cmp_call(cx, typeck, recv, needs_fully_qualified)
     } else {
         false

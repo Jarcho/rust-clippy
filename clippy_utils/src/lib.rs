@@ -364,19 +364,9 @@ pub fn is_diag_item_method(cx: &LateContext<'_>, def_id: DefId, diag_item: Symbo
     false
 }
 
-/// Checks if a method is in a diagnostic item trait
-pub fn is_diag_trait_item(cx: &LateContext<'_>, def_id: DefId, diag_item: Symbol) -> bool {
-    if let Some(trait_did) = cx.tcx.trait_of_assoc(def_id) {
-        return cx.tcx.is_diagnostic_item(diag_item, trait_did);
-    }
-    false
-}
-
 /// Checks if the method call given in `expr` belongs to the given trait.
 pub fn is_trait_method(cx: &LateContext<'_>, expr: &Expr<'_>, diag_item: Symbol) -> bool {
-    cx.typeck_results()
-        .type_dependent_def_id(expr.hir_id)
-        .is_some_and(|did| is_diag_trait_item(cx, did, diag_item))
+    cx.is_assoc_of_diag_item(cx.type_dependent_def(expr.hir_id), diag_item)
 }
 
 /// Checks if the `def_id` belongs to a function that is part of a trait impl.
@@ -400,13 +390,7 @@ pub fn is_def_id_trait_method(cx: &LateContext<'_>, def_id: LocalDefId) -> bool 
 /// refers to an item of the trait `Default`, which is associated with the
 /// `diag_item` of `sym::Default`.
 pub fn is_trait_item(cx: &LateContext<'_>, expr: &Expr<'_>, diag_item: Symbol) -> bool {
-    if let ExprKind::Path(ref qpath) = expr.kind {
-        cx.qpath_res(qpath, expr.hir_id)
-            .opt_def_id()
-            .is_some_and(|def_id| is_diag_trait_item(cx, def_id, diag_item))
-    } else {
-        false
-    }
+    cx.is_assoc_of_diag_item(cx.path_def(expr), diag_item)
 }
 
 pub fn last_path_segment<'tcx>(path: &QPath<'tcx>) -> &'tcx PathSegment<'tcx> {

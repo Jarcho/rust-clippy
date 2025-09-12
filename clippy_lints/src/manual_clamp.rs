@@ -3,13 +3,12 @@ use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::{span_lint_and_then, span_lint_hir_and_then};
 use clippy_utils::higher::If;
 use clippy_utils::msrvs::{self, Msrv};
-use clippy_utils::res::PathRes;
+use clippy_utils::res::{PathRes, TyCtxtDefExt};
 use clippy_utils::sugg::Sugg;
 use clippy_utils::ty::implements_trait;
 use clippy_utils::visitors::is_const_evaluatable;
 use clippy_utils::{
-    eq_expr_value, is_diag_trait_item, is_in_const_context, is_trait_method, path_to_local_id, peel_blocks,
-    peel_blocks_with_stmt, sym,
+    eq_expr_value, is_in_const_context, is_trait_method, path_to_local_id, peel_blocks, peel_blocks_with_stmt, sym,
 };
 use itertools::Itertools;
 use rustc_errors::{Applicability, Diag};
@@ -331,16 +330,13 @@ fn is_max_min_pattern<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) -> O
 fn is_call_max_min_pattern<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) -> Option<ClampSuggestion<'tcx>> {
     fn segment<'tcx>(cx: &LateContext<'_>, func: &Expr<'tcx>) -> Option<FunctionType<'tcx>> {
         match func.kind {
-            ExprKind::Path(QPath::Resolved(None, path)) => {
-                let id = path.res.opt_def_id()?;
-                match cx.tcx.get_diagnostic_name(id) {
-                    Some(sym::cmp_min) => Some(FunctionType::CmpMin),
-                    Some(sym::cmp_max) => Some(FunctionType::CmpMax),
-                    _ if is_diag_trait_item(cx, id, sym::Ord) => {
-                        Some(FunctionType::OrdOrFloat(path.segments.last().expect("infallible")))
-                    },
-                    _ => None,
-                }
+            ExprKind::Path(QPath::Resolved(None, path)) => match cx.opt_diag_name(path.res) {
+                Some(sym::cmp_min) => Some(FunctionType::CmpMin),
+                Some(sym::cmp_max) => Some(FunctionType::CmpMax),
+                _ if cx.is_assoc_of_diag_item(path.res, sym::Ord) => {
+                    Some(FunctionType::OrdOrFloat(path.segments.last().expect("infallible")))
+                },
+                _ => None,
             },
             ExprKind::Path(QPath::TypeRelative(ty, seg)) => {
                 matches!(cx.path_res(ty), Res::PrimTy(PrimTy::Float(_))).then(|| FunctionType::OrdOrFloat(seg))

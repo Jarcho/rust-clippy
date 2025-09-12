@@ -1,7 +1,8 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
+use clippy_utils::res::{PathRes, TyCtxtDefExt};
 use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::ty::{implements_trait, should_call_clone_as_function, walk_ptrs_ty_depth};
-use clippy_utils::{get_parent_expr, is_diag_trait_item, path_to_local_id, peel_blocks, strip_pat_refs};
+use clippy_utils::{get_parent_expr, path_to_local_id, peel_blocks, strip_pat_refs};
 use rustc_errors::Applicability;
 use rustc_hir::{self as hir, LangItem};
 use rustc_lint::LateContext;
@@ -42,11 +43,11 @@ fn get_enum_ty(enum_ty: Ty<'_>) -> Option<Ty<'_>> {
 pub(super) fn check(cx: &LateContext<'_>, expr: &hir::Expr<'_>, call_name: Symbol, recvr: &hir::Expr<'_>) {
     // when we get here, we've already checked that the call name is "as_ref" or "as_mut"
     // check if the call is to the actual `AsRef` or `AsMut` trait
-    let Some(def_id) = cx.typeck_results().type_dependent_def_id(expr.hir_id) else {
+    let Some(parent_id) = cx.assoc_parent_id(cx.type_dependent_def(expr.hir_id)) else {
         return;
     };
 
-    if is_diag_trait_item(cx, def_id, sym::AsRef) || is_diag_trait_item(cx, def_id, sym::AsMut) {
+    if matches!(cx.opt_diag_name(parent_id), Some(sym::AsRef | sym::AsMut)) {
         // check if the type after `as_ref` or `as_mut` is the same as before
         let rcv_ty = cx.typeck_results().expr_ty(recvr);
         let res_ty = cx.typeck_results().expr_ty(expr);
@@ -79,10 +80,10 @@ pub(super) fn check(cx: &LateContext<'_>, expr: &hir::Expr<'_>, call_name: Symbo
                 applicability,
             );
         }
-    } else if let Some(impl_id) = cx.tcx.impl_of_assoc(def_id)
-        && let Some(adt) = cx.tcx.type_of(impl_id).instantiate_identity().ty_adt_def()
-        && matches!(cx.tcx.get_diagnostic_name(adt.did()), Some(sym::Option | sym::Result))
-    {
+    } else if matches!(
+        cx.opt_diag_name(cx.opt_impl_ty(parent_id)),
+        Some(sym::Option | sym::Result)
+    ) {
         let rcv_ty = cx.typeck_results().expr_ty(recvr).peel_refs();
         let res_ty = cx.typeck_results().expr_ty(expr).peel_refs();
 
