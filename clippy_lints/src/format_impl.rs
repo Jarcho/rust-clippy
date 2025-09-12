@@ -1,6 +1,6 @@
 use clippy_utils::diagnostics::{span_lint, span_lint_and_sugg};
 use clippy_utils::macros::{FormatArgsStorage, find_format_arg_expr, is_format_macro, root_macro_call_first_node};
-use clippy_utils::res::{PathRes, TyCtxtDefExt};
+use clippy_utils::res::PathRes;
 use clippy_utils::{get_parent_as_impl, path_to_local, peel_ref_operators, sym};
 use rustc_ast::{FormatArgsPiece, FormatTrait};
 use rustc_errors::Applicability;
@@ -158,7 +158,7 @@ impl FormatImplExpr<'_, '_> {
             && path.ident.name == sym::to_string
             // Is the method a part of the ToString trait? (i.e. not to_string() implemented
             // separately)
-            && self.cx.is_assoc_of_diag_item(self.cx.type_dependent_def(self.expr.hir_id), sym::ToString)
+            && self.cx.is_type_dependent_assoc_of_diag_item(self.expr, sym::ToString)
             // Is the method is called on self
             && let ExprKind::Path(QPath::Resolved(_, path)) = self_arg.kind
             && let [segment] = path.segments

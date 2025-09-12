@@ -10,7 +10,7 @@ use rustc_span::sym;
 use super::SUSPICIOUS_TO_OWNED;
 
 pub fn check(cx: &LateContext<'_>, expr: &hir::Expr<'_>, recv: &hir::Expr<'_>) -> bool {
-    if cx.is_assoc_of_diag_item(cx.type_dependent_def(expr.hir_id), sym::ToOwned)
+    if cx.is_type_dependent_assoc_of_diag_item(expr, sym::ToOwned)
         && let input_type = cx.typeck_results().expr_ty(expr)
         && cx.is_diag_item(input_type, sym::Cow)
     {

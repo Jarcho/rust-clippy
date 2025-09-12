@@ -1,10 +1,11 @@
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_and_then};
 use clippy_utils::msrvs::{self, Msrv};
+use clippy_utils::res::PathRes;
 use clippy_utils::source::snippet_with_context;
 use clippy_utils::usage::local_used_after_expr;
 use clippy_utils::visitors::{Descend, for_each_expr};
-use clippy_utils::{is_diag_item_method, path_to_local_id, paths, sym};
+use clippy_utils::{path_to_local_id, paths, sym};
 use core::ops::ControlFlow;
 use rustc_errors::Applicability;
 use rustc_hir::{
@@ -347,11 +348,7 @@ fn parse_iter_usage<'tcx>(
             },
             _ if e.span.ctxt() != ctxt => (None, span),
             ExprKind::MethodCall(name, _, [], _)
-                if name.ident.name == sym::unwrap
-                    && cx
-                        .typeck_results()
-                        .type_dependent_def_id(e.hir_id)
-                        .is_some_and(|id| is_diag_item_method(cx, id, sym::Option)) =>
+                if name.ident.name == sym::unwrap && cx.is_type_dependent_assoc_of_diag_ty(e, sym::Option) =>
             {
                 (Some(UnwrapKind::Unwrap), e.span)
             },

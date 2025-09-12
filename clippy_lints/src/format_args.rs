@@ -498,7 +498,7 @@ impl<'tcx> FormatArgsExpr<'_, 'tcx> {
         let cx = self.cx;
         if !value.span.from_expansion()
             && let ExprKind::MethodCall(_, receiver, [], to_string_span) = value.kind
-            && cx.is_assoc_of_diag_item(cx.type_dependent_def(value.hir_id), sym::ToString)
+            && cx.is_type_dependent_assoc_of_diag_item(value, sym::ToString)
             && let receiver_ty = cx.typeck_results().expr_ty(receiver)
             && let Some(display_trait_id) = cx.tcx.get_diagnostic_item(sym::Display)
             && let (n_needed_derefs, target) =
