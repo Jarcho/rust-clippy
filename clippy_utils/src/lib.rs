@@ -345,15 +345,6 @@ pub fn is_ty_alias(qpath: &QPath<'_>) -> bool {
     }
 }
 
-/// Checks if the given method call expression calls an inherent method.
-pub fn is_inherent_method_call(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
-    if let Some(method_id) = cx.typeck_results().type_dependent_def_id(expr.hir_id) {
-        cx.tcx.trait_of_assoc(method_id).is_none()
-    } else {
-        false
-    }
-}
-
 /// Checks if the `def_id` belongs to a function that is part of a trait impl.
 pub fn is_def_id_trait_method(cx: &LateContext<'_>, def_id: LocalDefId) -> bool {
     if let Node::Item(item) = cx.tcx.parent_hir_node(cx.tcx.local_def_id_to_hir_id(def_id))
