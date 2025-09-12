@@ -1,6 +1,6 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
+use clippy_utils::res::TyCtxtDefExt;
 use clippy_utils::source::snippet_with_applicability;
-use clippy_utils::ty::is_type_lang_item;
 use rustc_errors::Applicability;
 use rustc_hir::{Expr, ExprKind, LangItem, is_range_literal};
 use rustc_lint::LateContext;
@@ -11,7 +11,7 @@ pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, recv: &Expr<'_>) {
     if let ExprKind::Index(indexed, index, _) = recv.kind
         && is_range_literal(index)
         && let ty = cx.typeck_results().expr_ty(indexed).peel_refs()
-        && (ty.is_str() || is_type_lang_item(cx, ty, LangItem::String))
+        && (ty.is_str() || cx.is_lang_item(ty, LangItem::String))
     {
         let mut applicability = Applicability::MaybeIncorrect;
         let stringish = snippet_with_applicability(cx, indexed.span, "_", &mut applicability);

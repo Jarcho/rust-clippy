@@ -1,6 +1,6 @@
 use clippy_utils::diagnostics::span_lint_and_then;
+use clippy_utils::res::TyCtxtDefExt;
 use clippy_utils::source::snippet_with_context;
-use clippy_utils::ty::is_type_lang_item;
 use clippy_utils::{get_parent_expr, peel_middle_ty_refs};
 use rustc_ast::util::parser::ExprPrecedence;
 use rustc_errors::Applicability;
@@ -80,7 +80,7 @@ impl<'tcx> LateLintPass<'tcx> for RedundantSlicing {
         if let ExprKind::AddrOf(BorrowKind::Ref, mutability, addressee) = expr.kind
             && addressee.span.ctxt() == ctxt
             && let ExprKind::Index(indexed, range, _) = addressee.kind
-            && is_type_lang_item(cx, cx.typeck_results().expr_ty_adjusted(range), LangItem::RangeFull)
+            && cx.is_lang_item(cx.typeck_results().expr_ty_adjusted(range), LangItem::RangeFull)
         {
             let (expr_ty, expr_ref_count) = peel_middle_ty_refs(cx.typeck_results().expr_ty(expr));
             let (indexed_ty, indexed_ref_count) = peel_middle_ty_refs(cx.typeck_results().expr_ty(indexed));

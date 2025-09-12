@@ -1,5 +1,5 @@
 use clippy_utils::diagnostics::span_lint;
-use clippy_utils::ty::{get_type_diagnostic_name, is_type_lang_item};
+use clippy_utils::res::TyCtxtDefExt;
 use clippy_utils::visitors::{Visitable, for_each_expr};
 use clippy_utils::{get_enclosing_block, path_to_local_id};
 use core::ops::ControlFlow;
@@ -57,21 +57,23 @@ impl<'tcx> LateLintPass<'tcx> for CollectionIsNeverRead {
 }
 
 fn match_acceptable_type(cx: &LateContext<'_>, local: &LetStmt<'_>) -> bool {
-    let ty = cx.typeck_results().pat_ty(local.pat);
-    matches!(
-        get_type_diagnostic_name(cx, ty),
-        Some(
-            sym::BTreeMap
-                | sym::BTreeSet
-                | sym::BinaryHeap
-                | sym::HashMap
-                | sym::HashSet
-                | sym::LinkedList
-                | sym::Option
-                | sym::Vec
-                | sym::VecDeque
-        )
-    ) || is_type_lang_item(cx, ty, LangItem::String)
+    cx.typeck_results().pat_ty(local.pat).ty_adt_def().is_some_and(|adt| {
+        cx.is_lang_item(adt, LangItem::String)
+            || matches!(
+                cx.opt_diag_name(adt),
+                Some(
+                    sym::BTreeMap
+                        | sym::BTreeSet
+                        | sym::BinaryHeap
+                        | sym::HashMap
+                        | sym::HashSet
+                        | sym::LinkedList
+                        | sym::Option
+                        | sym::Vec
+                        | sym::VecDeque
+                )
+            )
+    })
 }
 
 fn has_no_read_access<'tcx, T: Visitable<'tcx>>(cx: &LateContext<'tcx>, id: HirId, block: T) -> bool {

@@ -2,7 +2,6 @@ use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::res::TyCtxtDefExt;
 use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::sym;
-use clippy_utils::ty::is_type_lang_item;
 use rustc_errors::Applicability;
 use rustc_hir::{Expr, ExprKind, LangItem};
 use rustc_lint::LateContext;
@@ -22,7 +21,7 @@ pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, recv: &Expr<'_>, arg:
         && cx.is_diag_item( src_ty, sym::Vec)
         //check drain range
         && let src_ty_range = cx.typeck_results().expr_ty(drain_arg).peel_refs()
-        && is_type_lang_item(cx, src_ty_range, LangItem::RangeFull)
+        && cx.is_lang_item(src_ty_range, LangItem::RangeFull)
     {
         let mut applicability = Applicability::MachineApplicable;
         span_lint_and_sugg(

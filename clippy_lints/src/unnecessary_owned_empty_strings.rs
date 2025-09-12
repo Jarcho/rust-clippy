@@ -1,5 +1,5 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::ty::is_type_lang_item;
+use clippy_utils::res::TyCtxtDefExt;
 use rustc_ast::ast::LitKind;
 use rustc_errors::Applicability;
 use rustc_hir::{BorrowKind, Expr, ExprKind, LangItem, Mutability};
@@ -58,7 +58,7 @@ impl<'tcx> LateLintPass<'tcx> for UnnecessaryOwnedEmptyStrings {
                 && let LitKind::Str(symbol, _) = spanned.node
                 && symbol.is_empty()
                 && let inner_expr_type = cx.typeck_results().expr_ty(inner_expr)
-                && is_type_lang_item(cx, inner_expr_type, LangItem::String)
+                && cx.is_lang_item(inner_expr_type, LangItem::String)
             {
                 span_lint_and_sugg(
                     cx,

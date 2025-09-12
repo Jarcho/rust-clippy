@@ -102,7 +102,7 @@ impl LateLintPass<'_> for MyStructLint {
         }
 
         // 2. Using lang items
-        if is_type_lang_item(cx, ty, LangItem::RangeFull) {
+        if cx.is_lang_item(ty, LangItem::RangeFull) {
             // The type is a full range like `.drain(..)`
         }
 
@@ -173,7 +173,7 @@ impl<'tcx> LateLintPass<'tcx> for MyTypeImpl {
             // We can also check it has a parameter `self`
             && signature.decl.implicit_self.has_implicit_self()
             // We can go further and even check if its return type is `String`
-            && is_type_lang_item(cx, return_ty(cx, impl_item.hir_id), LangItem::String)
+            && cx.is_lang_item(return_ty(cx, impl_item.hir_id), LangItem::String)
         {
             // ...
         }

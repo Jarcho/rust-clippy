@@ -1,6 +1,7 @@
 use clippy_utils::diagnostics::span_lint_and_then;
+use clippy_utils::res::TyCtxtDefExt;
 use clippy_utils::source::snippet_with_applicability;
-use clippy_utils::ty::{is_type_lang_item, walk_ptrs_ty_depth};
+use clippy_utils::ty::walk_ptrs_ty_depth;
 use rustc_errors::Applicability;
 use rustc_hir as hir;
 use rustc_lint::LateContext;
@@ -53,17 +54,10 @@ pub fn check(
 /// Returns whether `ty` specializes `ToString`.
 /// Currently, these are `str`, `String`, and `Cow<'_, str>`.
 fn specializes_tostring(cx: &LateContext<'_>, ty: Ty<'_>) -> bool {
-    if let ty::Str = ty.kind() {
-        return true;
-    }
-
-    if is_type_lang_item(cx, ty, hir::LangItem::String) {
-        return true;
-    }
-
-    if let ty::Adt(adt, args) = ty.kind() {
-        cx.tcx.is_diagnostic_item(sym::Cow, adt.did()) && args.type_at(1).is_str()
-    } else {
-        false
+    match *ty.kind() {
+        ty::Str => true,
+        ty::Adt(adt, _) if cx.is_lang_item(adt, hir::LangItem::String) => true,
+        ty::Adt(adt, args) if cx.is_diag_item(adt, sym::Cow) => args.type_at(1).is_str(),
+        _ => false,
     }
 }

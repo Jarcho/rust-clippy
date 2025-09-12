@@ -1,6 +1,6 @@
 use clippy_utils::SpanlessEq;
 use clippy_utils::diagnostics::span_lint;
-use clippy_utils::ty::is_type_lang_item;
+use clippy_utils::res::TyCtxtDefExt;
 use rustc_ast::LitKind;
 use rustc_hir::{ExprKind, LangItem};
 use rustc_lint::LateContext;
@@ -14,7 +14,7 @@ pub(super) fn check<'tcx>(
     arg2: &'tcx rustc_hir::Expr<'_>,
 ) {
     let ty = cx.typeck_results().expr_ty(expr).peel_refs();
-    if !(ty.is_str() || is_type_lang_item(cx, ty, LangItem::String)) {
+    if !(ty.is_str() || cx.is_lang_item(ty, LangItem::String)) {
         return;
     }
 

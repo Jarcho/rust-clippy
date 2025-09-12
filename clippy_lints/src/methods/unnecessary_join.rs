@@ -1,5 +1,5 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::ty::is_type_lang_item;
+use clippy_utils::res::TyCtxtDefExt;
 use rustc_ast::ast::LitKind;
 use rustc_errors::Applicability;
 use rustc_hir::{Expr, ExprKind, LangItem};
@@ -21,7 +21,7 @@ pub(super) fn check<'tcx>(
     if let ty::Ref(_, ref_type, _) = collect_output_adjusted_type.kind()
         // the turbofish for collect is ::<Vec<String>>
         && let ty::Slice(slice) = ref_type.kind()
-        && is_type_lang_item(cx, *slice, LangItem::String)
+        && cx.is_lang_item(*slice, LangItem::String)
         // the argument for join is ""
         && let ExprKind::Lit(spanned) = &join_arg.kind
         && let LitKind::Str(symbol, _) = spanned.node

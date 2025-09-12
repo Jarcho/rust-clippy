@@ -1,23 +1,21 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
+use clippy_utils::res::TyCtxtDefExt;
 use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::sym;
-use clippy_utils::ty::is_type_lang_item;
 use rustc_errors::Applicability;
 use rustc_hir::{Expr, LangItem};
 use rustc_lint::LateContext;
+use rustc_middle::ty;
 
 use crate::methods::method_call;
 
 use super::BYTES_NTH;
 
 pub(super) fn check<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'_>, recv: &'tcx Expr<'tcx>, n_arg: &'tcx Expr<'tcx>) {
-    let ty = cx.typeck_results().expr_ty(recv).peel_refs();
-    let caller_type = if ty.is_str() {
-        "str"
-    } else if is_type_lang_item(cx, ty, LangItem::String) {
-        "String"
-    } else {
-        return;
+    let caller_type = match *cx.typeck_results().expr_ty(recv).peel_refs().kind() {
+        ty::Str => "str",
+        ty::Adt(adt, _) if cx.is_lang_item(adt, LangItem::String) => "String",
+        _ => return,
     };
 
     let mut applicability = Applicability::MachineApplicable;

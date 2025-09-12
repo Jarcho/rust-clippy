@@ -1,6 +1,6 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
+use clippy_utils::res::TyCtxtDefExt;
 use clippy_utils::sugg::Sugg;
-use clippy_utils::ty::is_type_lang_item;
 use clippy_utils::{is_in_const_context, is_integer_literal, sym};
 use rustc_errors::Applicability;
 use rustc_hir::{Expr, ExprKind, LangItem, PrimTy, QPath, TyKind, def};
@@ -66,7 +66,11 @@ impl<'tcx> LateLintPass<'tcx> for FromStrRadix10 {
         {
             let expr = if let ExprKind::AddrOf(_, _, expr) = &src.kind {
                 let ty = cx.typeck_results().expr_ty(expr);
-                if is_ty_stringish(cx, ty) { expr } else { &src }
+                if is_ty_stringish(cx, ty.peel_refs()) {
+                    expr
+                } else {
+                    &src
+                }
             } else {
                 &src
             };
@@ -89,5 +93,5 @@ impl<'tcx> LateLintPass<'tcx> for FromStrRadix10 {
 
 /// Checks if a Ty is `String` or `&str`
 fn is_ty_stringish(cx: &LateContext<'_>, ty: Ty<'_>) -> bool {
-    is_type_lang_item(cx, ty, LangItem::String) || ty.peel_refs().is_str()
+    cx.is_lang_item(ty, LangItem::String) || ty.peel_refs().is_str()
 }
