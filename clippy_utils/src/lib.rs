@@ -281,36 +281,6 @@ pub fn is_enum_variant_ctor(
         .any(|(_, ctor_def_id)| *ctor_def_id == ctor_call_id)
 }
 
-/// Checks if the `DefId` matches the given diagnostic item or it's constructor.
-pub fn is_diagnostic_item_or_ctor(cx: &LateContext<'_>, did: DefId, item: Symbol) -> bool {
-    let did = match cx.tcx.def_kind(did) {
-        DefKind::Ctor(..) => cx.tcx.parent(did),
-        // Constructors for types in external crates seem to have `DefKind::Variant`
-        DefKind::Variant => match cx.tcx.opt_parent(did) {
-            Some(did) if matches!(cx.tcx.def_kind(did), DefKind::Variant) => did,
-            _ => did,
-        },
-        _ => did,
-    };
-
-    cx.tcx.is_diagnostic_item(item, did)
-}
-
-/// Checks if the `DefId` matches the given `LangItem` or it's constructor.
-pub fn is_lang_item_or_ctor(cx: &LateContext<'_>, did: DefId, item: LangItem) -> bool {
-    let did = match cx.tcx.def_kind(did) {
-        DefKind::Ctor(..) => cx.tcx.parent(did),
-        // Constructors for types in external crates seem to have `DefKind::Variant`
-        DefKind::Variant => match cx.tcx.opt_parent(did) {
-            Some(did) if matches!(cx.tcx.def_kind(did), DefKind::Variant) => did,
-            _ => did,
-        },
-        _ => did,
-    };
-
-    cx.tcx.lang_items().get(item) == Some(did)
-}
-
 /// Checks if `expr` is an empty block or an empty tuple.
 pub fn is_unit_expr(expr: &Expr<'_>) -> bool {
     matches!(
