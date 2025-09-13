@@ -1,6 +1,6 @@
 use clippy_utils::diagnostics::span_lint_and_help;
-use clippy_utils::res::TyCtxtDefExt;
-use clippy_utils::{path_to_local, peel_blocks};
+use clippy_utils::peel_blocks;
+use clippy_utils::res::{MaybeResPath, TyCtxtDefExt};
 use rustc_hir::def_id::LocalDefId;
 use rustc_hir::intravisit::FnKind;
 use rustc_hir::{Body, ExprKind, FnDecl, FnRetTy};
@@ -55,7 +55,7 @@ impl<'tcx> LateLintPass<'tcx> for SingleOptionMap {
                 && method_name.ident.name == sym::map
                 && let callee_type = cx.typeck_results().expr_ty(callee)
                 && cx.is_diag_item(callee_type.ty_adt_def(), sym::Option)
-                && path_to_local(callee).is_some()
+                && callee.path_local_id().is_some()
                 && !matches!(args[0].kind, ExprKind::Path(_))
             {
                 if let ExprKind::Closure(closure) = args[0].kind {
@@ -67,7 +67,7 @@ impl<'tcx> LateLintPass<'tcx> for SingleOptionMap {
                         return;
                     } else if let ExprKind::MethodCall(_segment, receiver, method_args, _span) = value.kind
                         && matches!(receiver.kind, ExprKind::Path(_))
-                        && method_args.iter().all(|arg| path_to_local(arg).is_some())
+                        && method_args.iter().all(|arg| arg.path_local_id().is_some())
                     {
                         return;
                     }

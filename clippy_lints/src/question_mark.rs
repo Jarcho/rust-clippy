@@ -4,13 +4,13 @@ use clippy_config::Conf;
 use clippy_config::types::MatchLintBehaviour;
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::msrvs::{self, Msrv};
-use clippy_utils::res::{PathRes, TyCtxtDefExt};
+use clippy_utils::res::{MaybeResPath, PathRes, TyCtxtDefExt};
 use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::sugg::Sugg;
 use clippy_utils::ty::implements_trait;
 use clippy_utils::{
     eq_expr_value, higher, is_else_clause, is_in_const_context, is_lint_allowed, pat_and_expr_can_be_question_mark,
-    path_to_local, path_to_local_id, peel_blocks, peel_blocks_with_stmt, span_contains_cfg, span_contains_comment, sym,
+    path_to_local_id, peel_blocks, peel_blocks_with_stmt, span_contains_cfg, span_contains_comment, sym,
 };
 use rustc_errors::Applicability;
 use rustc_hir::LangItem::{self, OptionNone, OptionSome, ResultErr, ResultOk};
@@ -247,7 +247,7 @@ fn expr_return_none_or_err(
         ExprKind::Ret(Some(ret_expr)) => expr_return_none_or_err(smbl, cx, ret_expr, cond_expr, err_sym),
         ExprKind::Path(ref qpath) => match smbl {
             sym::Option => cx.is_path_lang_ctor((qpath, expr.hir_id), OptionNone),
-            sym::Result => path_to_local(expr).is_some() && path_to_local(expr) == path_to_local(cond_expr),
+            sym::Result => expr.path_local_id().is_some() && expr.path_local_id() == cond_expr.path_local_id(),
             _ => false,
         },
         ExprKind::Call(call_expr, [arg]) => {

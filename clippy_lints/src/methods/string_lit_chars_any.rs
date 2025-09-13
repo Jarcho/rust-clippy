@@ -1,8 +1,8 @@
 use clippy_utils::diagnostics::span_lint_and_then;
+use clippy_utils::is_from_proc_macro;
 use clippy_utils::msrvs::{self, Msrv};
-use clippy_utils::res::PathRes;
+use clippy_utils::res::{MaybeResPath, PathRes};
 use clippy_utils::source::SpanRangeExt;
-use clippy_utils::{is_from_proc_macro, path_to_local};
 use itertools::Itertools;
 use rustc_ast::LitKind;
 use rustc_errors::Applicability;
@@ -26,8 +26,8 @@ pub(super) fn check<'tcx>(
         && let LitKind::Str(val, _) = lit_kind.node
         && let ExprKind::Binary(kind, lhs, rhs) = body.kind
         && let BinOpKind::Eq = kind.node
-        && let Some(lhs_path) = path_to_local(lhs)
-        && let Some(rhs_path) = path_to_local(rhs)
+        && let Some(lhs_path) = lhs.path_local_id()
+        && let Some(rhs_path) = rhs.path_local_id()
         && let scrutinee = match (lhs_path == arg, rhs_path == arg) {
             (true, false) => rhs,
             (false, true) => lhs,

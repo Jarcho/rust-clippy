@@ -2,12 +2,12 @@ use std::ops::ControlFlow;
 
 use super::NEEDLESS_COLLECT;
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_hir_and_then};
-use clippy_utils::res::{PathRes, TyCtxtDefExt};
+use clippy_utils::res::{MaybeResPath, PathRes, TyCtxtDefExt};
 use clippy_utils::source::{snippet, snippet_with_applicability};
 use clippy_utils::sugg::Sugg;
 use clippy_utils::ty::{has_non_owning_mutable_access, make_normalized_projection, make_projection};
 use clippy_utils::{
-    CaptureKind, can_move_expr_to_closure, fn_def_id, get_enclosing_block, higher, path_to_local, path_to_local_id, sym,
+    CaptureKind, can_move_expr_to_closure, fn_def_id, get_enclosing_block, higher, path_to_local_id, sym,
 };
 use rustc_data_structures::fx::FxHashMap;
 use rustc_errors::{Applicability, MultiSpan};
@@ -382,7 +382,7 @@ impl<'tcx> Visitor<'tcx> for IterFunctionVisitor<'_, 'tcx> {
                 return;
             }
 
-            if let Some(hir_id) = path_to_local(recv)
+            if let Some(hir_id) = recv.path_local_id()
                 && let Some(index) = self.hir_id_uses_map.remove(&hir_id)
             {
                 if self
@@ -553,7 +553,7 @@ impl<'tcx> Visitor<'tcx> for IteratorMethodCheckVisitor<'_, 'tcx> {
             return ControlFlow::Break(());
         } else if let ExprKind::Assign(place, value, _span) = &expr.kind
             && value.hir_id == self.hir_id_of_expr
-            && let Some(id) = path_to_local(place)
+            && let Some(id) = place.path_local_id()
         {
             // our iterator was directly assigned to a variable
             self.hir_id_of_let_binding = Some(id);

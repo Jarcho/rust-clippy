@@ -1,10 +1,10 @@
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::macros::{PanicExpn, find_assert_args, root_macro_call_first_node};
-use clippy_utils::res::TyCtxtDefExt;
+use clippy_utils::res::{MaybeResPath, TyCtxtDefExt};
 use clippy_utils::source::snippet_with_context;
+use clippy_utils::sym;
 use clippy_utils::ty::{has_debug_impl, is_copy};
 use clippy_utils::usage::local_used_after_expr;
-use clippy_utils::{path_to_local, sym};
 use rustc_errors::Applicability;
 use rustc_hir::{Expr, ExprKind, Node};
 use rustc_lint::{LateContext, LateLintPass};
@@ -61,7 +61,7 @@ impl<'tcx> LateLintPass<'tcx> for AssertionsOnResultStates {
             if !is_copy(cx, result_type) {
                 if result_type_with_refs != result_type {
                     return;
-                } else if let Some(binding_id) = path_to_local(recv)
+                } else if let Some(binding_id) = recv.path_local_id()
                     && local_used_after_expr(cx, binding_id, recv)
                 {
                     return;

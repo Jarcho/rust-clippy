@@ -1,8 +1,8 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::res::TyCtxtDefExt;
+use clippy_utils::res::{MaybeResPath, TyCtxtDefExt};
 use clippy_utils::source::SpanRangeExt;
+use clippy_utils::sym;
 use clippy_utils::usage::local_used_after_expr;
-use clippy_utils::{path_to_local, sym};
 use rustc_errors::Applicability;
 use rustc_hir::Expr;
 use rustc_lint::LateContext;
@@ -16,7 +16,7 @@ pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, recv: &Expr<'_>, name
 
     if cx.is_diag_item(outer_ty, sym::Option) && outer_ty == typeck.expr_ty(recv) {
         if name == sym::as_deref_mut && recv.is_syntactic_place_expr() {
-            let Some(binding_id) = path_to_local(recv) else {
+            let Some(binding_id) = recv.path_local_id() else {
                 return;
             };
 
