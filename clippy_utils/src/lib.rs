@@ -250,19 +250,6 @@ pub fn is_inside_always_const_context(tcx: TyCtxt<'_>, hir_id: HirId) -> bool {
     }
 }
 
-/// Checks if a `Res` refers to a constructor of a `LangItem`
-/// For example, use this to check whether a function call or a pattern is `Some(..)`.
-pub fn is_res_lang_ctor(tcx: TyCtxt<'_>, res: Res, lang_item: LangItem) -> bool {
-    if let Res::Def(DefKind::Ctor(..), id) = res
-        && let Some(lang_id) = tcx.lang_items().get(lang_item)
-        && let Some(id) = tcx.opt_parent(id)
-    {
-        id == lang_id
-    } else {
-        false
-    }
-}
-
 /// Checks if `{ctor_call_id}(...)` is `{enum_item}::{variant_name}(...)`.
 pub fn is_enum_variant_ctor(
     cx: &LateContext<'_>,

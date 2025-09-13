@@ -9,9 +9,8 @@ use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::sugg::Sugg;
 use clippy_utils::ty::implements_trait;
 use clippy_utils::{
-    eq_expr_value, higher, is_else_clause, is_in_const_context, is_lint_allowed, is_res_lang_ctor,
-    pat_and_expr_can_be_question_mark, path_to_local, path_to_local_id, peel_blocks, peel_blocks_with_stmt,
-    span_contains_cfg, span_contains_comment, sym,
+    eq_expr_value, higher, is_else_clause, is_in_const_context, is_lint_allowed, pat_and_expr_can_be_question_mark,
+    path_to_local, path_to_local_id, peel_blocks, peel_blocks_with_stmt, span_contains_cfg, span_contains_comment, sym,
 };
 use rustc_errors::Applicability;
 use rustc_hir::LangItem::{self, OptionNone, OptionSome, ResultErr, ResultOk};
@@ -219,15 +218,15 @@ fn is_early_return(smbl: Symbol, cx: &LateContext<'_>, if_block: &IfBlockType<'_
                     sym::Option => {
                         // We only need to check `if let Some(x) = option` not `if let None = option`,
                         // because the later one will be suggested as `if option.is_none()` thus causing conflict.
-                        is_res_lang_ctor(cx.tcx, res, OptionSome)
+                        cx.is_lang_ctor(res, OptionSome)
                             && if_else.is_some()
                             && expr_return_none_or_err(smbl, cx, if_else.unwrap(), let_expr, None)
                     },
                     sym::Result => {
-                        (is_res_lang_ctor(cx.tcx, res, ResultOk)
+                        (cx.is_lang_ctor(res, ResultOk)
                             && if_else.is_some()
                             && expr_return_none_or_err(smbl, cx, if_else.unwrap(), let_expr, Some(let_pat_sym)))
-                            || is_res_lang_ctor(cx.tcx, res, ResultErr)
+                            || cx.is_lang_ctor(res, ResultErr)
                                 && expr_return_none_or_err(smbl, cx, if_then, let_expr, Some(let_pat_sym))
                                 && if_else.is_none()
                     },
