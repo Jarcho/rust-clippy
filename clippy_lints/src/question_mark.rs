@@ -10,7 +10,7 @@ use clippy_utils::sugg::Sugg;
 use clippy_utils::ty::implements_trait;
 use clippy_utils::{
     eq_expr_value, higher, is_else_clause, is_in_const_context, is_lint_allowed, pat_and_expr_can_be_question_mark,
-    path_to_local_id, peel_blocks, peel_blocks_with_stmt, span_contains_cfg, span_contains_comment, sym,
+    peel_blocks, peel_blocks_with_stmt, span_contains_cfg, span_contains_comment, sym,
 };
 use rustc_errors::Applicability;
 use rustc_hir::LangItem::{self, OptionNone, OptionSome, ResultErr, ResultOk};
@@ -370,7 +370,7 @@ fn check_arm_is_some_or_ok<'tcx>(cx: &LateContext<'tcx>, mode: TryMode, arm: &Ar
         // Extract out `val`
         && let Some(binding) = extract_binding_pat(val_binding)
         // Check body is just `=> val`
-        && path_to_local_id(peel_blocks(arm.body), binding)
+        && peel_blocks(arm.body).is_path_local(binding)
     {
         true
     } else {
@@ -394,7 +394,7 @@ fn check_arm_is_none_or_err<'tcx>(cx: &LateContext<'tcx>, mode: TryMode, arm: &A
                 && let ExprKind::Call(ok_ctor, [ret_expr]) = wrapped_ret_expr.kind
                 && cx.is_path_lang_ctor(ok_ctor, ResultErr)
                 // check `...` is `val` from binding
-                && path_to_local_id(ret_expr, ok_val)
+                && ret_expr.is_path_local(ok_val)
             {
                 true
             } else {
@@ -465,7 +465,7 @@ fn check_if_let_some_or_err_and_early_return<'tcx>(cx: &LateContext<'tcx>, expr:
             if_then,
             if_else,
         )
-        && ((is_early_return(sym::Option, cx, &if_block) && path_to_local_id(peel_blocks(if_then), bind_id))
+        && ((is_early_return(sym::Option, cx, &if_block) && peel_blocks(if_then).is_path_local(bind_id))
             || is_early_return(sym::Result, cx, &if_block))
         && if_else
             .map(|e| eq_expr_value(cx, let_expr, peel_blocks(e)))

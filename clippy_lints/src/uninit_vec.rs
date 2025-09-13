@@ -1,8 +1,8 @@
 use clippy_utils::diagnostics::{span_lint, span_lint_and_then};
 use clippy_utils::higher::{VecInitKind, get_vec_init_kind};
-use clippy_utils::res::TyCtxtDefExt;
+use clippy_utils::res::{MaybeResPath, TyCtxtDefExt};
 use clippy_utils::ty::is_uninit_value_valid_for_ty;
-use clippy_utils::{SpanlessEq, is_integer_literal, is_lint_allowed, path_to_local_id, peel_hir_expr_while, sym};
+use clippy_utils::{SpanlessEq, is_integer_literal, is_lint_allowed, peel_hir_expr_while, sym};
 use rustc_hir::{Block, Expr, ExprKind, HirId, PatKind, PathSegment, Stmt, StmtKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty;
@@ -143,7 +143,7 @@ enum VecLocation<'tcx> {
 impl<'tcx> VecLocation<'tcx> {
     pub fn eq_expr(self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) -> bool {
         match self {
-            VecLocation::Local(hir_id) => path_to_local_id(expr, hir_id),
+            VecLocation::Local(hir_id) => expr.is_path_local(hir_id),
             VecLocation::Expr(self_expr) => SpanlessEq::new(cx).eq_expr(self_expr, expr),
         }
     }

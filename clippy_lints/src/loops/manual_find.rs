@@ -1,11 +1,11 @@
 use super::MANUAL_FIND;
 use super::utils::make_iterator_snippet;
 use clippy_utils::diagnostics::span_lint_and_then;
-use clippy_utils::res::PathRes;
+use clippy_utils::res::{MaybeResPath, PathRes};
 use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::ty::implements_trait;
 use clippy_utils::usage::contains_return_break_continue_macro;
-use clippy_utils::{higher, path_to_local_id, peel_blocks_with_stmt};
+use clippy_utils::{higher, peel_blocks_with_stmt};
 use rustc_errors::Applicability;
 use rustc_hir::lang_items::LangItem;
 use rustc_hir::{BindingMode, Block, Expr, ExprKind, HirId, Node, Pat, PatKind, Stmt, StmtKind};
@@ -35,7 +35,7 @@ pub(super) fn check<'tcx>(
         && let ExprKind::Ret(Some(ret_value)) = semi.kind
         && let ExprKind::Call(ctor, [inner_ret]) = ret_value.kind
         && cx.is_path_lang_ctor(ctor, LangItem::OptionSome)
-        && path_to_local_id(inner_ret, binding_id)
+        && inner_ret.is_path_local(binding_id)
         && !contains_return_break_continue_macro(cond)
         && let Some((last_stmt, last_ret)) = last_stmt_and_ret(cx, expr)
     {

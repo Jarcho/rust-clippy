@@ -1,8 +1,8 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::msrvs::{self, Msrv};
-use clippy_utils::res::{PathRes, TyCtxtDefExt};
-use clippy_utils::{path_to_local_id, sym};
+use clippy_utils::res::{MaybeResPath, PathRes, TyCtxtDefExt};
+use clippy_utils::sym;
 use rustc_errors::Applicability;
 use rustc_hir::{Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
@@ -117,7 +117,7 @@ fn should_lint(cx: &LateContext<'_>, args: &[Expr<'_>], method_name: Symbol) -> 
                         && let [param] = body.params
                         && let ExprKind::MethodCall(method, receiver, [], _) = body.value.kind
                         && method.ident.name == sym::ok
-                        && path_to_local_id(receiver, param.pat.hir_id) =>
+                        && receiver.is_path_local(param.pat.hir_id) =>
                 {
                     cx.is_type_dependent_assoc_of_diag_ty(body.value, sym::Result)
                 },

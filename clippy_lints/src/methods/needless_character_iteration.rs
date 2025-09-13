@@ -7,9 +7,9 @@ use rustc_span::Span;
 use super::NEEDLESS_CHARACTER_ITERATION;
 use super::utils::get_last_chain_binding_hir_id;
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::res::PathRes;
+use clippy_utils::res::{MaybeResPath, PathRes};
 use clippy_utils::source::SpanRangeExt;
-use clippy_utils::{path_to_local_id, peel_blocks, sym};
+use clippy_utils::{peel_blocks, sym};
 
 fn peels_expr_ref<'a, 'tcx>(mut expr: &'a Expr<'tcx>) -> &'a Expr<'tcx> {
     while let ExprKind::AddrOf(_, _, e) = expr.kind {
@@ -33,7 +33,7 @@ fn handle_expr(
             // `is_ascii`, then only `.all()` should warn.
             if revert != is_all
                 && method.ident.name == sym::is_ascii
-                && path_to_local_id(receiver, first_param)
+                && receiver.is_path_local(first_param)
                 && let char_arg_ty = cx.typeck_results().expr_ty_adjusted(receiver).peel_refs()
                 && *char_arg_ty.kind() == ty::Char
                 && let Some(snippet) = before_chars.get_source_text(cx)
@@ -77,7 +77,7 @@ fn handle_expr(
             // `is_ascii`, then only `.all()` should warn.
             if revert != is_all
                 && cx.is_path_diag_item(fn_path, sym::char_is_ascii)
-                && path_to_local_id(peels_expr_ref(arg), first_param)
+                && peels_expr_ref(arg).is_path_local(first_param)
                 && let Some(snippet) = before_chars.get_source_text(cx)
             {
                 span_lint_and_sugg(

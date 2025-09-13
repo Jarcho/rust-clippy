@@ -1,6 +1,5 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::path_to_local_id;
-use clippy_utils::res::{PathRes, TyCtxtDefExt};
+use clippy_utils::res::{MaybeResPath, PathRes, TyCtxtDefExt};
 use clippy_utils::source::{SpanRangeExt, indent_of, reindent_multiline};
 use rustc_errors::Applicability;
 use rustc_hir::LangItem::{ResultErr, ResultOk};
@@ -49,7 +48,7 @@ fn is_ok_wrapping(cx: &LateContext<'_>, map_expr: &Expr<'_>) -> bool {
                 && let ExprKind::Call(callee, [ok_arg]) = body.value.kind
                 && cx.is_path_lang_ctor(callee, ResultOk)
             {
-                path_to_local_id(ok_arg, param_id)
+                ok_arg.is_path_local(param_id)
             } else {
                 false
             }

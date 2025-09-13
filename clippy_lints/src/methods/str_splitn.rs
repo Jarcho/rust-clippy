@@ -1,11 +1,11 @@
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_and_then};
 use clippy_utils::msrvs::{self, Msrv};
-use clippy_utils::res::PathRes;
+use clippy_utils::res::{MaybeResPath, PathRes};
 use clippy_utils::source::snippet_with_context;
 use clippy_utils::usage::local_used_after_expr;
 use clippy_utils::visitors::{Descend, for_each_expr};
-use clippy_utils::{path_to_local_id, paths, sym};
+use clippy_utils::{paths, sym};
 use core::ops::ControlFlow;
 use rustc_errors::Applicability;
 use rustc_hir::{
@@ -215,7 +215,7 @@ fn indirect_usage<'tcx>(
     {
         let mut path_to_binding = None;
         let _: Option<!> = for_each_expr(cx, init_expr, |e| {
-            if path_to_local_id(e, binding) {
+            if e.is_path_local(binding) {
                 path_to_binding = Some(e);
             }
             ControlFlow::Continue(Descend::from(path_to_binding.is_none()))

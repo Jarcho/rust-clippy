@@ -1,6 +1,6 @@
 use clippy_utils::diagnostics::span_lint_and_then;
+use clippy_utils::get_expr_use_or_unification_node;
 use clippy_utils::res::{MaybeResPath, PathRes};
-use clippy_utils::{get_expr_use_or_unification_node, path_to_local_id};
 use core::cell::Cell;
 use rustc_data_structures::fx::FxHashMap;
 use rustc_errors::Applicability;
@@ -315,7 +315,7 @@ impl<'tcx> LateLintPass<'tcx> for OnlyUsedInRecursion {
                         },
                         // Parameter update e.g. `x = x + 1`
                         ExprKind::Assign(lhs, rhs, _) | ExprKind::AssignOp(_, lhs, rhs)
-                            if rhs.hir_id == child_id && path_to_local_id(lhs, id) =>
+                            if rhs.hir_id == child_id && lhs.is_path_local(id) =>
                         {
                             return;
                         },

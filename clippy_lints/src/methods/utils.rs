@@ -1,5 +1,5 @@
-use clippy_utils::res::TyCtxtDefExt;
-use clippy_utils::{get_parent_expr, path_to_local_id, usage};
+use clippy_utils::res::{MaybeResPath, TyCtxtDefExt};
+use clippy_utils::{get_parent_expr, usage};
 use rustc_hir::intravisit::{Visitor, walk_expr};
 use rustc_hir::{BorrowKind, Expr, ExprKind, HirId, Mutability, Pat, QPath, Stmt, StmtKind};
 use rustc_lint::LateContext;
@@ -128,9 +128,7 @@ impl<'tcx> Visitor<'tcx> for CloneOrCopyVisitor<'_, 'tcx> {
 
 impl<'tcx> CloneOrCopyVisitor<'_, 'tcx> {
     fn is_binding(&self, expr: &Expr<'tcx>) -> bool {
-        self.binding_hir_ids
-            .iter()
-            .any(|hir_id| path_to_local_id(expr, *hir_id))
+        self.binding_hir_ids.iter().any(|hir_id| expr.is_path_local(*hir_id))
     }
 }
 

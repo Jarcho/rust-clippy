@@ -6,9 +6,7 @@ use clippy_utils::res::{MaybeResPath, PathRes, TyCtxtDefExt};
 use clippy_utils::source::{snippet, snippet_with_applicability};
 use clippy_utils::sugg::Sugg;
 use clippy_utils::ty::{has_non_owning_mutable_access, make_normalized_projection, make_projection};
-use clippy_utils::{
-    CaptureKind, can_move_expr_to_closure, fn_def_id, get_enclosing_block, higher, path_to_local_id, sym,
-};
+use clippy_utils::{CaptureKind, can_move_expr_to_closure, fn_def_id, get_enclosing_block, higher, sym};
 use rustc_data_structures::fx::FxHashMap;
 use rustc_errors::{Applicability, MultiSpan};
 use rustc_hir::intravisit::{Visitor, walk_block, walk_expr, walk_stmt};
@@ -344,7 +342,7 @@ impl<'tcx> Visitor<'tcx> for IterFunctionVisitor<'_, 'tcx> {
                 return;
             }
 
-            if path_to_local_id(recv, self.target) {
+            if recv.is_path_local(self.target) {
                 if self
                     .illegal_mutable_capture_ids
                     .intersection(&self.current_mutably_captured_ids)
@@ -400,7 +398,7 @@ impl<'tcx> Visitor<'tcx> for IterFunctionVisitor<'_, 'tcx> {
             }
         }
         // Check if the collection is used for anything else
-        if path_to_local_id(expr, self.target) {
+        if expr.is_path_local(self.target) {
             self.seen_other = true;
         } else {
             walk_expr(self, expr);
@@ -462,7 +460,7 @@ impl<'tcx> Visitor<'tcx> for UsedCountVisitor<'_, 'tcx> {
     type NestedFilter = nested_filter::OnlyBodies;
 
     fn visit_expr(&mut self, expr: &'tcx Expr<'_>) {
-        if path_to_local_id(expr, self.id) {
+        if expr.is_path_local(self.id) {
             self.count += 1;
         } else {
             walk_expr(self, expr);
@@ -545,9 +543,7 @@ impl<'tcx> Visitor<'tcx> for IteratorMethodCheckVisitor<'_, 'tcx> {
     fn visit_expr(&mut self, expr: &'tcx Expr<'tcx>) -> ControlFlow<()> {
         if let ExprKind::MethodCall(_method_name, recv, _args, _) = &expr.kind
             && (recv.hir_id == self.hir_id_of_expr
-                || self
-                    .hir_id_of_let_binding
-                    .is_some_and(|hid| path_to_local_id(recv, hid)))
+                || self.hir_id_of_let_binding.is_some_and(|hid| recv.is_path_local(hid)))
             && !self.cx.is_type_dependent_assoc_of_diag_item(expr, sym::Iterator)
         {
             return ControlFlow::Break(());

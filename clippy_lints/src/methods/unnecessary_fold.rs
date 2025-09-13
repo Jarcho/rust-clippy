@@ -1,7 +1,7 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::res::PathRes;
+use clippy_utils::res::{MaybeResPath, PathRes};
 use clippy_utils::source::snippet_with_applicability;
-use clippy_utils::{path_to_local_id, peel_blocks, strip_pat_refs};
+use clippy_utils::{peel_blocks, strip_pat_refs};
 use rustc_ast::ast;
 use rustc_data_structures::packed::Pu128;
 use rustc_errors::Applicability;
@@ -75,8 +75,8 @@ fn check_fold_with_op(
         && let PatKind::Binding(_, first_arg_id, ..) = strip_pat_refs(param_a.pat).kind
         && let PatKind::Binding(_, second_arg_id, second_arg_ident, _) = strip_pat_refs(param_b.pat).kind
 
-        && path_to_local_id(left_expr, first_arg_id)
-        && (replacement.has_args || path_to_local_id(right_expr, second_arg_id))
+        && left_expr.is_path_local(first_arg_id)
+        && (replacement.has_args || right_expr.is_path_local(second_arg_id))
     {
         let mut applicability = Applicability::MachineApplicable;
 

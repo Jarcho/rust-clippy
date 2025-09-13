@@ -1,6 +1,5 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::path_to_local_id;
-use clippy_utils::res::{PathRes, TyCtxtDefExt};
+use clippy_utils::res::{MaybeResPath, PathRes, TyCtxtDefExt};
 use clippy_utils::visitors::contains_unsafe_block;
 
 use rustc_hir::LangItem::{OptionNone, OptionSome};
@@ -65,7 +64,7 @@ fn is_some_expr(cx: &LateContext<'_>, target: HirId, ctxt: SyntaxContext, expr: 
         // there can be not statements in the block as they would be removed when switching to `.filter`
         && let ExprKind::Call(callee, [arg]) = inner_expr.kind
     {
-        return ctxt == expr.span.ctxt() && cx.is_path_lang_ctor(callee, OptionSome) && path_to_local_id(arg, target);
+        return ctxt == expr.span.ctxt() && cx.is_path_lang_ctor(callee, OptionSome) && arg.is_path_local(target);
     }
     false
 }

@@ -1,11 +1,11 @@
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_hir_and_then};
-use clippy_utils::res::PathRes;
+use clippy_utils::res::{MaybeResPath, PathRes};
 use clippy_utils::source::{SpanRangeExt, snippet_with_context};
 use clippy_utils::sugg::has_enclosing_paren;
 use clippy_utils::visitors::for_each_expr;
 use clippy_utils::{
     binary_expr_needs_parentheses, fn_def_id, is_from_proc_macro, is_inside_let_else,
-    leaks_droppable_temporary_with_limited_lifetime, path_to_local_id, span_contains_cfg, span_find_starting_semi, sym,
+    leaks_droppable_temporary_with_limited_lifetime, span_contains_cfg, span_find_starting_semi, sym,
 };
 use core::ops::ControlFlow;
 use rustc_ast::MetaItemInner;
@@ -234,7 +234,7 @@ impl<'tcx> LateLintPass<'tcx> for Return {
             && cx.tcx.hir_attrs(local.hir_id).is_empty()
             && let Some(initexpr) = &local.init
             && let PatKind::Binding(_, local_id, _, _) = local.pat.kind
-            && path_to_local_id(retexpr, local_id)
+            && retexpr.is_path_local(local_id)
             && (cx.sess().edition() >= Edition::Edition2024 || !last_statement_borrows(cx, initexpr))
             && !initexpr.span.in_external_macro(cx.sess().source_map())
             && !retexpr.span.in_external_macro(cx.sess().source_map())

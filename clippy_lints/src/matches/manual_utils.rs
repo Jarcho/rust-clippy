@@ -1,12 +1,12 @@
 use crate::map_unit_fn::OPTION_MAP_UNIT_FN;
 use crate::matches::MATCH_AS_REF;
-use clippy_utils::res::{PathRes, TyCtxtDefExt};
+use clippy_utils::res::{MaybeResPath, PathRes, TyCtxtDefExt};
 use clippy_utils::source::{snippet_with_applicability, snippet_with_context};
 use clippy_utils::sugg::Sugg;
 use clippy_utils::ty::{is_copy, peel_mid_ty_refs_is_mutable, type_is_unsafe_function};
 use clippy_utils::{
-    CaptureKind, can_move_expr_to_closure, expr_requires_coercion, is_else_clause, is_lint_allowed, path_to_local_id,
-    peel_blocks, peel_hir_expr_refs, peel_hir_expr_while,
+    CaptureKind, can_move_expr_to_closure, expr_requires_coercion, is_else_clause, is_lint_allowed, peel_blocks,
+    peel_hir_expr_refs, peel_hir_expr_while,
 };
 use rustc_ast::util::parser::ExprPrecedence;
 use rustc_errors::Applicability;
@@ -136,7 +136,7 @@ where
         {
             snippet_with_applicability(cx, func.span, "..", &mut app).into_owned()
         } else {
-            if path_to_local_id(some_expr.expr, id)
+            if some_expr.expr.is_path_local(id)
                 && !is_lint_allowed(cx, MATCH_AS_REF, expr.hir_id)
                 && binding_ref.is_some()
             {
@@ -188,7 +188,7 @@ pub struct SuggInfo<'a> {
 fn can_pass_as_func<'tcx>(cx: &LateContext<'tcx>, binding: HirId, expr: &'tcx Expr<'_>) -> Option<&'tcx Expr<'tcx>> {
     match expr.kind {
         ExprKind::Call(func, [arg])
-            if path_to_local_id(arg, binding)
+            if arg.is_path_local(binding)
                 && cx.typeck_results().expr_adjustments(arg).is_empty()
                 && !type_is_unsafe_function(cx, cx.typeck_results().expr_ty(func).peel_refs()) =>
         {

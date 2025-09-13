@@ -3,11 +3,11 @@ use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::{span_lint_and_then, span_lint_hir_and_then};
 use clippy_utils::higher::If;
 use clippy_utils::msrvs::{self, Msrv};
-use clippy_utils::res::{PathRes, TyCtxtDefExt};
+use clippy_utils::res::{MaybeResPath, PathRes, TyCtxtDefExt};
 use clippy_utils::sugg::Sugg;
 use clippy_utils::ty::implements_trait;
 use clippy_utils::visitors::is_const_evaluatable;
-use clippy_utils::{eq_expr_value, is_in_const_context, path_to_local_id, peel_blocks, peel_blocks_with_stmt, sym};
+use clippy_utils::{eq_expr_value, is_in_const_context, peel_blocks, peel_blocks_with_stmt, sym};
 use itertools::Itertools;
 use rustc_errors::{Applicability, Diag};
 use rustc_hir::def::Res;
@@ -432,7 +432,7 @@ fn is_match_pattern<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) -> Opt
         let first = BinaryOp::new(first)?;
         let second = BinaryOp::new(second)?;
         if let PatKind::Binding(_, binding, _, None) = &last_arm.pat.kind
-            && path_to_local_id(peel_blocks_with_stmt(last_arm.body), *binding)
+            && peel_blocks_with_stmt(last_arm.body).is_path_local(*binding)
             && last_arm.guard.is_none()
         {
             // Proceed as normal
@@ -652,8 +652,8 @@ fn is_clamp_meta_pattern<'tcx>(
                 let (min, max) = (second_expr, first_expr);
                 let refers_to_input = match input_hir_ids {
                     Some((first_hir_id, second_hir_id)) => {
-                        path_to_local_id(peel_blocks(first_bin.left), first_hir_id)
-                            && path_to_local_id(peel_blocks(second_bin.left), second_hir_id)
+                        peel_blocks(first_bin.left).is_path_local(first_hir_id)
+                            && peel_blocks(second_bin.left).is_path_local(second_hir_id)
                     },
                     None => eq_expr_value(cx, first_bin.left, second_bin.left),
                 };
