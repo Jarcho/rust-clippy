@@ -193,7 +193,7 @@ impl Visitor<'_> for IdentVisitor<'_, '_> {
                 return;
             }
 
-            if is_from_proc_macro(cx, &ident) {
+            if is_from_proc_macro(cx, ident) {
                 return;
             }
 

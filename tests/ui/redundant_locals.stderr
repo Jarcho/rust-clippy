@@ -156,6 +156,25 @@ help: `x` is initially defined here
 LL |     let x = 1;
    |         ^
 
+error: redundant redefinition of a binding `x`
+  --> tests/ui/redundant_locals.rs:119:13
+   |
+LL |             let $x = $x;
+   |             ^^^^^^^^^^^^
+...
+LL |     rebind!(x);
+   |     ---------- in this macro invocation
+   |
+help: `x` is initially defined here
+  --> tests/ui/redundant_locals.rs:118:17
+   |
+LL |             let $x = 1;
+   |                 ^^
+...
+LL |     rebind!(x);
+   |     ---------- in this macro invocation
+   = note: this error originates in the macro `rebind` (in Nightly builds, run with -Z macro-backtrace for more info)
+
 error: redundant redefinition of a binding `a`
   --> tests/ui/redundant_locals.rs:166:5
    |
@@ -168,5 +187,5 @@ help: `a` is initially defined here
 LL |     let a = WithoutDrop(1);
    |         ^
 
-error: aborting due to 14 previous errors
+error: aborting due to 15 previous errors
 

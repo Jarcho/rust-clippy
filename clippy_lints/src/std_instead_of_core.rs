@@ -123,7 +123,7 @@ impl<'tcx> LateLintPass<'tcx> for StdReexports {
             && let Some(first_segment) = get_first_segment(path)
             && is_stable(cx, def_id, self.msrv)
             && !path.span.in_external_macro(cx.sess().source_map())
-            && !is_from_proc_macro(cx, &first_segment.ident)
+            && !is_from_proc_macro(cx, first_segment.ident)
             && !matches!(def_kind, DefKind::Macro(_))
             && let Some(last_segment) = path.segments.last()
             && let Res::Def(DefKind::Mod, crate_def_id) = first_segment.res

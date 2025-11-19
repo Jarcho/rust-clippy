@@ -78,7 +78,9 @@ pub mod usage;
 pub mod visitors;
 
 pub use self::attrs::*;
-pub use self::check_proc_macro::{is_from_proc_macro, is_span_if, is_span_match};
+pub use self::check_proc_macro::{
+    is_fn_kind_from_proc_macro, is_from_proc_macro, is_hir_resolved_path_from_proc_macro,
+};
 pub use self::hir_utils::{
     HirEqInterExpr, SpanlessEq, SpanlessHash, both, count_eq, eq_expr_value, has_ambiguous_literal_in_expr, hash_expr,
     hash_stmt, is_bool, over,

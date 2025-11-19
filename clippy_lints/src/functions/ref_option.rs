@@ -2,7 +2,7 @@ use crate::functions::REF_OPTION;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::snippet;
 use clippy_utils::ty::option_arg_ty;
-use clippy_utils::{is_from_proc_macro, is_trait_impl_item};
+use clippy_utils::{is_fn_kind_from_proc_macro, is_from_proc_macro, is_trait_impl_item};
 use rustc_errors::Applicability;
 use rustc_hir::intravisit::FnKind;
 use rustc_hir::{self as hir, FnDecl, HirId};
@@ -101,7 +101,7 @@ pub(crate) fn check_fn<'a>(
         };
         let sig = args.as_closure().sig().skip_binder();
 
-        if is_from_proc_macro(cx, &(&kind, body, hir_id, span)) {
+        if is_fn_kind_from_proc_macro(cx, &kind, hir_id) {
             return;
         }
 
@@ -109,7 +109,7 @@ pub(crate) fn check_fn<'a>(
     } else if !is_trait_impl_item(cx, hir_id) {
         let sig = cx.tcx.fn_sig(def_id).instantiate_identity().skip_binder();
 
-        if is_from_proc_macro(cx, &(&kind, body, hir_id, span)) {
+        if is_fn_kind_from_proc_macro(cx, &kind, hir_id) {
             return;
         }
 

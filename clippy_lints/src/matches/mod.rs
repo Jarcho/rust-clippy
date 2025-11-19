@@ -28,7 +28,7 @@ use clippy_config::Conf;
 use clippy_utils::msrvs::{self, Msrv};
 use clippy_utils::source::walk_span_to_context;
 use clippy_utils::{
-    higher, is_direct_expn_of, is_in_const_context, is_span_match, span_contains_cfg, span_extract_comments, sym,
+    higher, is_direct_expn_of, is_from_proc_macro, is_in_const_context, span_contains_cfg, span_extract_comments, sym,
 };
 use rustc_hir::{Arm, Expr, ExprKind, LetStmt, MatchSource, Pat, PatKind};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
@@ -1066,7 +1066,7 @@ impl<'tcx> LateLintPass<'tcx> for Matches {
                 redundant_pattern_match::check_matches_true(cx, expr, arm, ex);
             }
 
-            if source == MatchSource::Normal && !is_span_match(cx, expr.span) {
+            if is_from_proc_macro(cx, expr) {
                 return;
             }
             if matches!(source, MatchSource::Normal | MatchSource::ForLoopDesugar) {

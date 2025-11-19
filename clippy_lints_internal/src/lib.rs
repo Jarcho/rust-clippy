@@ -33,6 +33,7 @@ extern crate rustc_span;
 mod almost_standard_lint_formulation;
 mod collapsible_calls;
 mod derive_deserialize_allowing_unknown;
+mod detect_proc_macros;
 mod internal_paths;
 mod lint_without_lint_pass;
 mod msrv_attr_impl;
@@ -49,6 +50,7 @@ static LINTS: &[&Lint] = &[
     almost_standard_lint_formulation::ALMOST_STANDARD_LINT_FORMULATION,
     collapsible_calls::COLLAPSIBLE_SPAN_LINT_CALLS,
     derive_deserialize_allowing_unknown::DERIVE_DESERIALIZE_ALLOWING_UNKNOWN,
+    detect_proc_macros::DETECT_PROC_MACROS,
     lint_without_lint_pass::DEFAULT_LINT,
     lint_without_lint_pass::INVALID_CLIPPY_VERSION_ATTRIBUTE,
     lint_without_lint_pass::LINT_WITHOUT_LINT_PASS,
@@ -68,8 +70,10 @@ pub fn register_lints(store: &mut LintStore) {
 
     store.register_early_pass(|| Box::new(unsorted_clippy_utils_paths::UnsortedClippyUtilsPaths));
     store.register_early_pass(|| Box::new(produce_ice::ProduceIce));
+    store.register_early_pass(|| Box::new(detect_proc_macros::DetectProcMacros));
     store.register_late_pass(|_| Box::new(collapsible_calls::CollapsibleCalls));
     store.register_late_pass(|_| Box::new(derive_deserialize_allowing_unknown::DeriveDeserializeAllowingUnknown));
+    store.register_late_pass(|_| Box::new(detect_proc_macros::DetectProcMacros));
     store.register_late_pass(|_| Box::<symbols::Symbols>::default());
     store.register_late_pass(|_| Box::<lint_without_lint_pass::LintWithoutLintPass>::default());
     store.register_late_pass(|_| Box::new(unnecessary_def_path::UnnecessaryDefPath));

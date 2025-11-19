@@ -1,0 +1,11 @@
+error: detected proc macro
+  --> tests/ui-internal/detect_proc_macro.rs:4:10
+   |
+LL | #[derive(Clone, Copy)]
+   |          ^^^^^
+   |
+   = note: `-D clippy::detect-proc-macros` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::detect_proc_macros)]`
+
+error: aborting due to 1 previous error
+

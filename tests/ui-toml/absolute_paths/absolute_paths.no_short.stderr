@@ -53,6 +53,12 @@ LL |     let _ = std::option::Option::None::<i32>;
    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error: consider bringing this path into scope with the `use` keyword
+  --> tests/ui-toml/absolute_paths/absolute_paths.rs:65:32
+   |
+LL |         impl<T: core::cmp::Eq> core::fmt::Display for X<T>
+   |                                ^^^^^^^^^^^^^^^^^^
+
+error: consider bringing this path into scope with the `use` keyword
   --> tests/ui-toml/absolute_paths/absolute_paths.rs:65:17
    |
 LL |         impl<T: core::cmp::Eq> core::fmt::Display for X<T>
@@ -63,12 +69,6 @@ error: consider bringing this path into scope with the `use` keyword
    |
 LL |         where T: core::clone::Clone
    |                  ^^^^^^^^^^^^^^^^^^
-
-error: consider bringing this path into scope with the `use` keyword
-  --> tests/ui-toml/absolute_paths/absolute_paths.rs:65:32
-   |
-LL |         impl<T: core::cmp::Eq> core::fmt::Display for X<T>
-   |                                ^^^^^^^^^^^^^^^^^^
 
 error: consider bringing this path into scope with the `use` keyword
   --> tests/ui-toml/absolute_paths/absolute_paths.rs:113:14

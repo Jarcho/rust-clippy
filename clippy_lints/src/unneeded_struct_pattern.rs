@@ -56,7 +56,7 @@ impl LateLintPass<'_> for UnneededStructPattern {
                 return;
             }
 
-            if is_from_proc_macro(cx, *path) {
+            if is_from_proc_macro(cx, pat) {
                 return;
             }
 

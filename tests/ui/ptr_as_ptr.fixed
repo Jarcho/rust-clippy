@@ -53,8 +53,7 @@ fn main() {
     //~^ ptr_as_ptr
 
     // Make sure the lint is triggered inside a macro
-    // FIXME: `is_from_proc_macro` incorrectly stops the lint from firing here
-    let _ = inline!($ptr as *const i32);
+    let _ = inline!($ptr.cast::<i32>()); //~ ptr_as_ptr
 
     // Do not lint inside macros from external crates
     let _ = external!($ptr as *const i32);

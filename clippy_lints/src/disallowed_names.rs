@@ -46,7 +46,7 @@ impl<'tcx> LateLintPass<'tcx> for DisallowedNames {
             && !ident.span.from_expansion()
             && self.disallow.contains(&ident.name)
             && !is_in_test(cx.tcx, pat.hir_id)
-            && !is_from_proc_macro(cx, &ident)
+            && !is_from_proc_macro(cx, ident)
         {
             span_lint(
                 cx,

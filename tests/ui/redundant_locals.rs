@@ -116,7 +116,7 @@ fn macros() {
     macro_rules! rebind {
         ($x:ident) => {
             let $x = 1;
-            let $x = $x;
+            let $x = $x; //~ redundant_locals
         };
     }
 
