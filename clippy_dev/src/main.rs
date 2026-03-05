@@ -22,11 +22,12 @@ use clippy_dev::{
     Dev, DevCommand, ReleaseCommand, ReleaseSubcommand, RemoveCommand, RemoveSubcommand, SetupCommand, SetupSubcommand,
     SyncCommand, SyncSubcommand,
 };
-use clippy_internal::{ClippyInfo, FileUpdater, UpdateMode, fmt, new_parse_cx};
+use clippy_internal::{ClippyInfo, DiagCx, FileUpdater, UpdateMode, fmt, new_parse_cx};
 use std::env;
 
 fn main() {
     let dev = Dev::parse();
+    let dcx = DiagCx::default();
     let clippy = ClippyInfo::search_for_manifest();
     if let Err(e) = env::set_current_dir(&clippy.path) {
         panic!("error setting current directory to `{}`: {e}", clippy.path.display());
@@ -42,18 +43,23 @@ fn main() {
             allow_staged,
             allow_no_vcs,
         } => dogfood::dogfood(fix, allow_dirty, allow_staged, allow_no_vcs),
-        DevCommand::Fmt { check } => fmt::run(UpdateMode::from_check(check)),
-        DevCommand::UpdateLints { check } => new_parse_cx(|cx| {
+        DevCommand::Fmt { check } => fmt::run(&dcx, UpdateMode::from_check(check)),
+        DevCommand::UpdateLints { check } => new_parse_cx(&dcx, |cx| {
             let data = cx.parse_lint_decls();
             cx.dcx.exit_on_err();
-            data.gen_decls(&mut FileUpdater::from_check(check));
+            data.gen_decls(&mut FileUpdater::new(
+                cx.dcx,
+                UpdateMode::from_check(check),
+                "cargo dev update_lints",
+            ));
+            cx.dcx.exit_on_err();
         }),
         DevCommand::NewLint {
             pass,
             name,
             category,
             msrv,
-        } => new_lint::create(clippy.version, &pass, &name, &category, msrv),
+        } => new_lint::create(&dcx, clippy.version, &pass, &name, &category, msrv),
         DevCommand::Setup(SetupCommand { subcommand }) => match subcommand {
             SetupSubcommand::Intellij { remove, repo_path } => {
                 if remove {
@@ -90,20 +96,20 @@ fn main() {
         },
         DevCommand::Serve { port, lint } => serve::run(port, lint),
         DevCommand::Lint { path, edition, args } => lint::run(&path, &edition, args.iter()),
-        DevCommand::RenameLint { old_name, new_name } => new_parse_cx(|cx| {
+        DevCommand::RenameLint { old_name, new_name } => new_parse_cx(&dcx, |cx| {
             edit_lints::rename(cx, clippy.version, &old_name, &new_name);
         }),
-        DevCommand::Uplift { old_name, new_name } => new_parse_cx(|cx| {
+        DevCommand::Uplift { old_name, new_name } => new_parse_cx(&dcx, |cx| {
             edit_lints::uplift(cx, clippy.version, &old_name, new_name.as_deref().unwrap_or(&old_name));
         }),
         DevCommand::Deprecate { name, reason } => {
-            new_parse_cx(|cx| edit_lints::deprecate(cx, clippy.version, &name, &reason));
+            new_parse_cx(&dcx, |cx| edit_lints::deprecate(cx, clippy.version, &name, &reason));
         },
         DevCommand::Sync(SyncCommand { subcommand }) => match subcommand {
-            SyncSubcommand::UpdateNightly => sync::update_nightly(),
+            SyncSubcommand::UpdateNightly => sync::update_nightly(&dcx),
         },
         DevCommand::Release(ReleaseCommand { subcommand }) => match subcommand {
-            ReleaseSubcommand::BumpVersion => release::bump_version(clippy.version),
+            ReleaseSubcommand::BumpVersion => release::bump_version(&dcx, clippy.version),
         },
     }
 }

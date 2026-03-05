@@ -1,3 +1,4 @@
+use clippy_internal::DiagCx;
 use clippy_internal::utils::{FileUpdater, UpdateStatus, Version, parse_cargo_package};
 use std::fmt::Write;
 
@@ -9,15 +10,14 @@ static CARGO_TOML_FILES: &[&str] = &[
     "Cargo.toml",
 ];
 
-pub fn bump_version(mut version: Version) {
+pub fn bump_version(dcx: &DiagCx, mut version: Version) {
     version.minor += 1;
 
-    let mut updater = FileUpdater::for_update();
+    let mut updater = FileUpdater::new_change(dcx);
     for file in CARGO_TOML_FILES {
-        updater.update_file("", file, &mut |_, src, dst| {
+        updater.update_file(file, &mut |_, src, dst| {
             let package = parse_cargo_package(src);
             if package.version_range.is_empty() {
-                dst.push_str(src);
                 UpdateStatus::Unchanged
             } else {
                 dst.push_str(&src[..package.version_range.start]);

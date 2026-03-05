@@ -1,3 +1,4 @@
+use crate::DiagCx;
 use core::cell::{Cell, OnceCell};
 use core::fmt::{self, Display, Write as _};
 use core::hash::{Hash, Hasher};
@@ -366,63 +367,33 @@ impl UpdateMode {
     }
 }
 
-pub struct FileUpdater {
-    mode: UpdateMode,
+pub struct FileUpdater<'dcx> {
+    pub dcx: &'dcx DiagCx,
+    pub mode: UpdateMode,
+    pub fix_tool: &'static str,
     src_buf: String,
     dst_buf: String,
 }
-impl FileUpdater {
+impl<'dcx> FileUpdater<'dcx> {
     #[must_use]
-    pub fn from_mode(mode: UpdateMode) -> Self {
+    pub fn new(dcx: &'dcx DiagCx, mode: UpdateMode, fix_tool: &'static str) -> Self {
         Self {
+            dcx,
             mode,
+            fix_tool,
             src_buf: String::new(),
             dst_buf: String::new(),
         }
     }
 
     #[must_use]
-    pub fn from_check(check: bool) -> Self {
-        Self::from_mode(UpdateMode::from_check(check))
-    }
-
-    #[must_use]
-    pub fn for_update() -> Self {
-        Self::from_mode(UpdateMode::Check)
-    }
-
-    #[must_use]
-    pub fn mode(&self) -> UpdateMode {
-        self.mode
-    }
-
-    #[track_caller]
-    fn update_file_inner(
-        &mut self,
-        tool: &str,
-        path: &Path,
-        update: &mut dyn FnMut(&Path, &str, &mut String) -> UpdateStatus,
-    ) {
-        let mut file = File::open_rw(path);
-        file.read_to_cleared_string(&mut self.src_buf);
-        self.dst_buf.clear();
-        match (self.mode, update(path, &self.src_buf, &mut self.dst_buf)) {
-            (UpdateMode::Check, UpdateStatus::Changed) => {
-                eprintln!(
-                    "the contents of `{}` are out of date\nplease run `{tool}` to update",
-                    path.display()
-                );
-                process::exit(1);
-            },
-            (UpdateMode::Change, UpdateStatus::Changed) => file.replace_contents(self.dst_buf.as_bytes()),
-            (UpdateMode::Check | UpdateMode::Change, UpdateStatus::Unchanged) => {},
-        }
+    pub fn new_change(dcx: &'dcx DiagCx) -> Self {
+        Self::new(dcx, UpdateMode::Change, "")
     }
 
     #[track_caller]
     pub fn update_loaded_file(
         &mut self,
-        tool: &str,
         file: &SourceFile<'_>,
         update: &mut dyn FnMut(&Path, &str, &mut String) -> UpdateStatus,
     ) {
@@ -432,11 +403,7 @@ impl FileUpdater {
             update(file.path.get().as_ref(), &file.contents, &mut self.dst_buf),
         ) {
             (UpdateMode::Check, UpdateStatus::Changed) => {
-                eprintln!(
-                    "the contents of `{}` are out of date\nplease run `{tool}` to update",
-                    file.path.get(),
-                );
-                process::exit(1);
+                self.dcx.emit_update_err(file.path.get().into(), self.fix_tool);
             },
             (UpdateMode::Change, UpdateStatus::Changed) => {
                 File::open_truncated(file.path.get()).write(self.dst_buf.as_bytes());
@@ -448,11 +415,27 @@ impl FileUpdater {
     #[track_caller]
     pub fn update_file(
         &mut self,
-        tool: &str,
         path: impl AsRef<Path>,
-        mut update: &mut dyn FnMut(&Path, &str, &mut String) -> UpdateStatus,
+        update: &mut dyn FnMut(&Path, &str, &mut String) -> UpdateStatus,
     ) {
-        self.update_file_inner(tool, path.as_ref(), &mut update);
+        #[track_caller]
+        fn f(
+            self_: &mut FileUpdater<'_>,
+            path: &Path,
+            update: &mut dyn FnMut(&Path, &str, &mut String) -> UpdateStatus,
+        ) {
+            let mut file = File::open_rw(path);
+            file.read_to_cleared_string(&mut self_.src_buf);
+            self_.dst_buf.clear();
+            match (self_.mode, update(path, &self_.src_buf, &mut self_.dst_buf)) {
+                (UpdateMode::Check, UpdateStatus::Changed) => {
+                    self_.dcx.emit_update_err(path.to_string_lossy(), self_.fix_tool);
+                },
+                (UpdateMode::Change, UpdateStatus::Changed) => file.replace_contents(self_.dst_buf.as_bytes()),
+                (UpdateMode::Check | UpdateMode::Change, UpdateStatus::Unchanged) => {},
+            }
+        }
+        f(self, path.as_ref(), update);
     }
 
     #[track_caller]
@@ -481,7 +464,9 @@ impl FileUpdater {
 
 /// Replaces a region in a text delimited by two strings. Returns the new text if both delimiters
 /// were found, or the missing delimiter if not.
+#[track_caller]
 pub fn update_text_region(
+    dcx: &DiagCx,
     path: &Path,
     start: &str,
     end: &str,
@@ -490,10 +475,12 @@ pub fn update_text_region(
     insert: &mut impl FnMut(&mut String),
 ) -> UpdateStatus {
     let Some((src_start, src_end)) = src.split_once(start) else {
-        panic!("`{}` does not contain `{start}`", path.display());
+        dcx.emit_path_err(path.to_string_lossy(), format!("could not find `{start}`"));
+        return UpdateStatus::Unchanged;
     };
     let Some((replaced_text, src_end)) = src_end.split_once(end) else {
-        panic!("`{}` does not contain `{end}`", path.display());
+        dcx.emit_path_err(path.to_string_lossy(), format!("could not find `{start}`"));
+        return UpdateStatus::Unchanged;
     };
     dst.push_str(src_start);
     dst.push_str(start);
@@ -506,11 +493,13 @@ pub fn update_text_region(
 }
 
 pub fn update_text_region_fn(
+    dcx: &DiagCx,
     start: &str,
     end: &str,
     mut insert: impl FnMut(&mut String),
 ) -> impl FnMut(&Path, &str, &mut String) -> UpdateStatus {
-    move |path, src, dst| update_text_region(path, start, end, src, dst, &mut insert)
+    #[track_caller]
+    move |path, src, dst| update_text_region(dcx, path, start, end, src, dst, &mut insert)
 }
 
 /// Creates a new directory, panicking on failure.

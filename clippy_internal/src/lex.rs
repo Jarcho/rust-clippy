@@ -135,7 +135,7 @@ pub struct UnexpectedErr<'a> {
     is_eof: bool,
 }
 impl UnexpectedErr<'_> {
-    pub fn emit<'a>(&self, dcx: &mut DiagCx, file: &'a SourceFile<'a>) {
+    pub fn emit<'a>(&self, dcx: &DiagCx, file: &'a SourceFile<'a>) {
         let msg = if self.is_eof { "end of file" } else { "token" };
         dcx.emit_spanned_err_loc(
             Span::new(file, self.range),

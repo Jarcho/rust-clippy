@@ -1,5 +1,6 @@
 #![feature(
     bool_to_result,
+    closure_track_caller,
     exit_status_error,
     macro_metavar_expr_concat,
     new_range,

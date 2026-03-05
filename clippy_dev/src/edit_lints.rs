@@ -40,7 +40,7 @@ pub fn deprecate<'cx, 'env: 'cx>(cx: ParseCx<'cx>, clippy_version: Version, name
     };
     cx.dcx.exit_on_err();
 
-    let mut updater = FileUpdater::for_update();
+    let mut updater = FileUpdater::new_change(cx.dcx);
     remove_lint_declaration(name, prev_lint.name_sp.file, &prev_lint_data, &data, &mut updater);
     data.gen_decls(&mut updater);
     println!("info: `{name}` has successfully been deprecated");
@@ -70,13 +70,13 @@ pub fn uplift<'cx, 'env: 'cx>(cx: ParseCx<'cx>, clippy_version: Version, old_nam
     cx.dcx.exit_on_err();
 
     update_rename_targets(&mut data, old_name, LintName::new_rustc(new_name));
-    let mut updater = FileUpdater::for_update();
+    let mut updater = FileUpdater::new_change(cx.dcx);
     let remove_mod = remove_lint_declaration(old_name, prev_lint.name_sp.file, &prev_lint_data, &data, &mut updater);
     let mut update_fn = uplift_update_fn(old_name, new_name, remove_mod);
     for e in walk_dir_no_dot_or_target(".") {
         let e = expect_action(e, ErrAction::Read, ".");
         if e.path().as_os_str().as_encoded_bytes().ends_with(b".rs") {
-            updater.update_file("", e.path(), &mut update_fn);
+            updater.update_file(e.path(), &mut update_fn);
         }
     }
     data.gen_decls(&mut updater);
@@ -121,7 +121,7 @@ pub fn rename<'cx, 'env: 'cx>(cx: ParseCx<'cx>, clippy_version: Version, old_nam
     cx.dcx.exit_on_err();
 
     update_rename_targets(&mut data, old_name, LintName::new_clippy(new_name));
-    let mut updater = FileUpdater::for_update();
+    let mut updater = FileUpdater::new_change(cx.dcx);
     let prev_file = prev_lint.name_sp.file;
     let mut rename_mod = false;
     if let Entry::Vacant(e) = data.lints.entry(new_name) {
@@ -149,7 +149,7 @@ pub fn rename<'cx, 'env: 'cx>(cx: ParseCx<'cx>, clippy_version: Version, old_nam
     for e in walk_dir_no_dot_or_target(".") {
         let e = expect_action(e, ErrAction::Read, ".");
         if e.path().as_os_str().as_encoded_bytes().ends_with(b".rs") {
-            updater.update_file("", e.path(), &mut update_fn);
+            updater.update_file(e.path(), &mut update_fn);
         }
     }
     data.gen_decls(&mut updater);
@@ -167,7 +167,7 @@ fn remove_lint_declaration(
     lint_file: &SourceFile<'_>,
     lint_data: &ActiveLintData<'_>,
     data: &ParsedLints<'_>,
-    updater: &mut FileUpdater,
+    updater: &mut FileUpdater<'_>,
 ) -> bool {
     let delete_mod = if data.lints.iter().all(|(_, l)| l.name_sp.file != lint_file) {
         delete_file_if_exists(lint_file.path.get())

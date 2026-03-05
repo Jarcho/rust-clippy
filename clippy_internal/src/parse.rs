@@ -16,12 +16,15 @@ pub struct ParseCxImpl<'cx> {
     pub source_files: &'cx TypedArena<SourceFile<'cx>>,
     pub str_buf: StrBuf,
     pub str_list_buf: VecBuf<&'cx str>,
-    pub dcx: DiagCx,
+    pub dcx: &'cx DiagCx,
 }
 pub type ParseCx<'cx> = &'cx mut ParseCxImpl<'cx>;
 
 /// Calls the given function inside a newly created parsing context.
-pub fn new_parse_cx<'env, T>(f: impl for<'cx> FnOnce(&'cx mut Scoped<'cx, 'env, ParseCxImpl<'cx>>) -> T) -> T {
+pub fn new_parse_cx<'env, T>(
+    dcx: &'env DiagCx,
+    f: impl for<'cx> FnOnce(&'cx mut Scoped<'cx, 'env, ParseCxImpl<'cx>>) -> T,
+) -> T {
     let arena = DroplessArena::default();
     let source_files = TypedArena::default();
     f(&mut Scoped::new(ParseCxImpl {
@@ -29,7 +32,7 @@ pub fn new_parse_cx<'env, T>(f: impl for<'cx> FnOnce(&'cx mut Scoped<'cx, 'env, 
         source_files: &source_files,
         str_buf: StrBuf::with_capacity(128),
         str_list_buf: VecBuf::with_capacity(128),
-        dcx: DiagCx::default(),
+        dcx,
     }))
 }
 
@@ -88,7 +91,7 @@ impl<'cx> ParseCxImpl<'cx> {
             PassImplKind::Trait(PassTrait::LateLintPass) => pass.is_late = true,
             PassImplKind::Trait(PassTrait::Default) => pass.ctor.add_default(),
             &PassImplKind::New(args) => pass.ctor = LintPassCtor::New(args),
-            PassImplKind::UnexpectedErr(e) => e.emit(&mut self.dcx, file),
+            PassImplKind::UnexpectedErr(e) => e.emit(self.dcx, file),
             &PassImplKind::SpannedErr(capture, msg, loc) => {
                 self.dcx.emit_spanned_err_loc(capture.mk_sp(file), msg, loc);
             },
@@ -169,7 +172,7 @@ impl<'cx> ParseCxImpl<'cx> {
             })
             .and_then(|()| cursor.eat_close_brace().ok_or("`}`"))
         {
-            cursor.mk_unexpected_err(expected).emit(&mut self.dcx, file);
+            cursor.mk_unexpected_err(expected).emit(self.dcx, file);
         }
 
         data.decl_sp.range.end = cursor.pos();
@@ -273,7 +276,7 @@ impl<'cx> ParseCxImpl<'cx> {
                         })
                         .and_then(|()| cursor.eat_close_brace().ok_or("`}`"))
                     {
-                        cursor.mk_unexpected_err(expected).emit(&mut self.dcx, file);
+                        cursor.mk_unexpected_err(expected).emit(self.dcx, file);
                     } else if let [docs, version, name, group_comments, group, desc] = captures
                         && let name_sp = name.mk_sp(file)
                         && let name = self.str_buf.alloc_ascii_lower(self.arena, cursor.get_text(name))
@@ -316,7 +319,7 @@ impl<'cx> ParseCxImpl<'cx> {
                             cursor.match_all(&[CloseBracket, CloseParen, Semi], &mut [])
                         })
                     {
-                        cursor.mk_unexpected_err(expected).emit(&mut self.dcx, file);
+                        cursor.mk_unexpected_err(expected).emit(self.dcx, file);
                     } else {
                         data.lint_passes.push(LintPass {
                             docs: cursor.get_text(captures[0]),
@@ -401,7 +404,7 @@ impl<'cx> ParseCxImpl<'cx> {
                     PassTrait::EarlyLintPass | PassTrait::Default => &[Ident(IdentPat::r#for)],
                 };
                 if let Err(expected) = cursor.match_all(pats, &mut []) {
-                    cursor.mk_unexpected_err(expected).emit(&mut self.dcx, file);
+                    cursor.mk_unexpected_err(expected).emit(self.dcx, file);
                     None
                 } else {
                     cursor
@@ -557,7 +560,7 @@ impl<'cx> ParseCxImpl<'cx> {
                 })
             })
         {
-            cursor.mk_unexpected_err(expected).emit(&mut self.dcx, file);
+            cursor.mk_unexpected_err(expected).emit(self.dcx, file);
         }
     }
 

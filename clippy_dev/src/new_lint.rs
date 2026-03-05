@@ -3,7 +3,7 @@ use clippy_internal::ir::{
 };
 use clippy_internal::lex::Cursor;
 use clippy_internal::utils::{FileUpdater, VecBuf, Version, create_new_dir};
-use clippy_internal::{SourceFile, Span, gen_sorted_lints_file, new_parse_cx};
+use clippy_internal::{DiagCx, SourceFile, Span, gen_sorted_lints_file, new_parse_cx};
 use std::collections::hash_map::Entry;
 use std::fmt::Write as _;
 use std::path::{self, MAIN_SEPARATOR_STR as PATH_SEP, PathBuf};
@@ -14,8 +14,8 @@ use std::path::{self, MAIN_SEPARATOR_STR as PATH_SEP, PathBuf};
 ///
 /// This function errors out if the files couldn't be created or written to.
 #[expect(clippy::too_many_lines)]
-pub fn create(clippy_version: Version, pass: &str, name: &str, group: &str, has_msrv: bool) {
-    new_parse_cx(|cx| {
+pub fn create(dcx: &DiagCx, clippy_version: Version, pass: &str, name: &str, group: &str, has_msrv: bool) {
+    new_parse_cx(dcx, |cx| {
         let cx = &mut **cx;
         let mut data = cx.parse_lint_decls();
         let conf_data = has_msrv.then(|| cx.parse_conf_mac());
@@ -64,7 +64,7 @@ pub fn create(clippy_version: Version, pass: &str, name: &str, group: &str, has_
             opts: "",
         };
 
-        let mut updater = FileUpdater::for_update();
+        let mut updater = FileUpdater::new_change(cx.dcx);
 
         // Edit clippy source to add the new lint.
         if let Some(pass_idx) = pass_idx {
