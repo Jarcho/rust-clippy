@@ -39,4 +39,4 @@ mod parse;
 pub use self::diag::DiagCx;
 pub use self::generate::gen_sorted_lints_file;
 pub use self::parse::{ParseCx, new_parse_cx};
-pub use self::utils::{ClippyInfo, SourceFile, Span, UpdateMode};
+pub use self::utils::{ClippyInfo, FileUpdater, SourceFile, Span, UpdateMode};

@@ -19,7 +19,7 @@ pub fn update_nightly() {
         },
     );
 
-    let mut updater = FileUpdater::default();
-    updater.update_file("rust-toolchain.toml", toolchain_update);
-    updater.update_file("clippy_utils/README.md", readme_update);
+    let mut updater = FileUpdater::for_update();
+    updater.update_file("", "rust-toolchain.toml", toolchain_update);
+    updater.update_file("", "clippy_utils/README.md", readme_update);
 }

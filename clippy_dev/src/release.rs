@@ -12,9 +12,9 @@ static CARGO_TOML_FILES: &[&str] = &[
 pub fn bump_version(mut version: Version) {
     version.minor += 1;
 
-    let mut updater = FileUpdater::default();
+    let mut updater = FileUpdater::for_update();
     for file in CARGO_TOML_FILES {
-        updater.update_file(file, &mut |_, src, dst| {
+        updater.update_file("", file, &mut |_, src, dst| {
             let package = parse_cargo_package(src);
             if package.version_range.is_empty() {
                 dst.push_str(src);

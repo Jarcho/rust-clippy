@@ -1,8 +1,8 @@
 use clippy_internal::ir::{ActiveLintData, DeprecatedLintData, Lint, LintData, LintName, ParsedLints, RenamedLintData};
 use clippy_internal::lex::{Capture, Cursor, TokenKind};
 use clippy_internal::utils::{
-    ErrAction, FileUpdater, UpdateMode, UpdateStatus, Version, delete_dir_if_exists, delete_file_if_exists,
-    expect_action, try_rename_dir, try_rename_file, walk_dir_no_dot_or_target,
+    ErrAction, FileUpdater, UpdateStatus, Version, delete_dir_if_exists, delete_file_if_exists, expect_action,
+    try_rename_dir, try_rename_file, walk_dir_no_dot_or_target,
 };
 use clippy_internal::{ParseCx, SourceFile, Span};
 use core::mem;
@@ -40,14 +40,9 @@ pub fn deprecate<'cx, 'env: 'cx>(cx: ParseCx<'cx>, clippy_version: Version, name
     };
     cx.dcx.exit_on_err();
 
-    remove_lint_declaration(
-        name,
-        prev_lint.name_sp.file,
-        &prev_lint_data,
-        &data,
-        &mut FileUpdater::default(),
-    );
-    data.gen_decls(UpdateMode::Change);
+    let mut updater = FileUpdater::for_update();
+    remove_lint_declaration(name, prev_lint.name_sp.file, &prev_lint_data, &data, &mut updater);
+    data.gen_decls(&mut updater);
     println!("info: `{name}` has successfully been deprecated");
     println!("note: you must run `cargo uitest` to update the test results");
 }
@@ -75,16 +70,16 @@ pub fn uplift<'cx, 'env: 'cx>(cx: ParseCx<'cx>, clippy_version: Version, old_nam
     cx.dcx.exit_on_err();
 
     update_rename_targets(&mut data, old_name, LintName::new_rustc(new_name));
-    let mut updater = FileUpdater::default();
+    let mut updater = FileUpdater::for_update();
     let remove_mod = remove_lint_declaration(old_name, prev_lint.name_sp.file, &prev_lint_data, &data, &mut updater);
     let mut update_fn = uplift_update_fn(old_name, new_name, remove_mod);
     for e in walk_dir_no_dot_or_target(".") {
         let e = expect_action(e, ErrAction::Read, ".");
         if e.path().as_os_str().as_encoded_bytes().ends_with(b".rs") {
-            updater.update_file(e.path(), &mut update_fn);
+            updater.update_file("", e.path(), &mut update_fn);
         }
     }
-    data.gen_decls(UpdateMode::Change);
+    data.gen_decls(&mut updater);
     println!("info: `{old_name}` has successfully been uplifted as `{new_name}`");
     println!("note: you must run `cargo uitest` to update the test results");
 }
@@ -126,7 +121,7 @@ pub fn rename<'cx, 'env: 'cx>(cx: ParseCx<'cx>, clippy_version: Version, old_nam
     cx.dcx.exit_on_err();
 
     update_rename_targets(&mut data, old_name, LintName::new_clippy(new_name));
-    let mut updater = FileUpdater::default();
+    let mut updater = FileUpdater::for_update();
     let prev_file = prev_lint.name_sp.file;
     let mut rename_mod = false;
     if let Entry::Vacant(e) = data.lints.entry(new_name) {
@@ -154,10 +149,10 @@ pub fn rename<'cx, 'env: 'cx>(cx: ParseCx<'cx>, clippy_version: Version, old_nam
     for e in walk_dir_no_dot_or_target(".") {
         let e = expect_action(e, ErrAction::Read, ".");
         if e.path().as_os_str().as_encoded_bytes().ends_with(b".rs") {
-            updater.update_file(e.path(), &mut update_fn);
+            updater.update_file("", e.path(), &mut update_fn);
         }
     }
-    data.gen_decls(UpdateMode::Change);
+    data.gen_decls(&mut updater);
 
     println!("Renamed `{old_name}` to `{new_name}`");
     println!("All code referencing the old name has been updated");

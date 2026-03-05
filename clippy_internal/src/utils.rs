@@ -366,24 +366,47 @@ impl UpdateMode {
     }
 }
 
-#[derive(Default)]
 pub struct FileUpdater {
+    mode: UpdateMode,
     src_buf: String,
     dst_buf: String,
 }
 impl FileUpdater {
+    #[must_use]
+    pub fn from_mode(mode: UpdateMode) -> Self {
+        Self {
+            mode,
+            src_buf: String::new(),
+            dst_buf: String::new(),
+        }
+    }
+
+    #[must_use]
+    pub fn from_check(check: bool) -> Self {
+        Self::from_mode(UpdateMode::from_check(check))
+    }
+
+    #[must_use]
+    pub fn for_update() -> Self {
+        Self::from_mode(UpdateMode::Check)
+    }
+
+    #[must_use]
+    pub fn mode(&self) -> UpdateMode {
+        self.mode
+    }
+
     #[track_caller]
-    fn update_file_checked_inner(
+    fn update_file_inner(
         &mut self,
         tool: &str,
-        mode: UpdateMode,
         path: &Path,
         update: &mut dyn FnMut(&Path, &str, &mut String) -> UpdateStatus,
     ) {
         let mut file = File::open_rw(path);
         file.read_to_cleared_string(&mut self.src_buf);
         self.dst_buf.clear();
-        match (mode, update(path, &self.src_buf, &mut self.dst_buf)) {
+        match (self.mode, update(path, &self.src_buf, &mut self.dst_buf)) {
             (UpdateMode::Check, UpdateStatus::Changed) => {
                 eprintln!(
                     "the contents of `{}` are out of date\nplease run `{tool}` to update",
@@ -397,16 +420,15 @@ impl FileUpdater {
     }
 
     #[track_caller]
-    pub fn update_loaded_file_checked(
+    pub fn update_loaded_file(
         &mut self,
         tool: &str,
-        mode: UpdateMode,
         file: &SourceFile<'_>,
         update: &mut dyn FnMut(&Path, &str, &mut String) -> UpdateStatus,
     ) {
         self.dst_buf.clear();
         match (
-            mode,
+            self.mode,
             update(file.path.get().as_ref(), &file.contents, &mut self.dst_buf),
         ) {
             (UpdateMode::Check, UpdateStatus::Changed) => {
@@ -424,23 +446,13 @@ impl FileUpdater {
     }
 
     #[track_caller]
-    pub fn update_file_checked(
-        &mut self,
-        tool: &str,
-        mode: UpdateMode,
-        path: impl AsRef<Path>,
-        update: &mut dyn FnMut(&Path, &str, &mut String) -> UpdateStatus,
-    ) {
-        self.update_file_checked_inner(tool, mode, path.as_ref(), update);
-    }
-
-    #[track_caller]
     pub fn update_file(
         &mut self,
+        tool: &str,
         path: impl AsRef<Path>,
-        update: &mut dyn FnMut(&Path, &str, &mut String) -> UpdateStatus,
+        mut update: &mut dyn FnMut(&Path, &str, &mut String) -> UpdateStatus,
     ) {
-        self.update_file_checked_inner("", UpdateMode::Change, path.as_ref(), update);
+        self.update_file_inner(tool, path.as_ref(), &mut update);
     }
 
     #[track_caller]

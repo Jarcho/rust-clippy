@@ -9,10 +9,9 @@ use std::io::Read;
 use std::process::{self, Command, Stdio};
 
 /// Format the symbols list
-fn fmt_syms(update_mode: UpdateMode) {
-    FileUpdater::default().update_file_checked(
+fn fmt_syms(updater: &mut FileUpdater) {
+    updater.update_file(
         "cargo dev fmt",
-        update_mode,
         "clippy_utils/src/sym.rs",
         &mut |_, text: &str, new_text: &mut String| {
             let (pre, conf) = text.split_once("generate! {\n").expect("can't find generate! call");
@@ -40,7 +39,7 @@ fn fmt_syms(update_mode: UpdateMode) {
     );
 }
 
-fn run_rustfmt(update_mode: UpdateMode) {
+fn run_rustfmt(mode: UpdateMode) {
     let mut rustfmt_path = String::from_utf8(run_with_output(
         "rustup which rustfmt",
         Command::new("rustup").args(["which", "rustfmt"]),
@@ -63,7 +62,7 @@ fn run_rustfmt(update_mode: UpdateMode) {
         32,
         || {
             let mut cmd = Command::new(&rustfmt_path);
-            if update_mode.is_check() {
+            if mode.is_check() {
                 cmd.arg("--check");
             }
             cmd.stdout(Stdio::null())
@@ -79,7 +78,7 @@ fn run_rustfmt(update_mode: UpdateMode) {
 
     for child in &mut children {
         let status = expect_action(child.wait(), ErrAction::Run, "rustfmt");
-        match (update_mode, status.exit_ok()) {
+        match (mode, status.exit_ok()) {
             (UpdateMode::Check | UpdateMode::Change, Ok(())) => {},
             (UpdateMode::Check, Err(_)) => {
                 let mut s = String::new();
@@ -105,14 +104,14 @@ fn run_rustfmt(update_mode: UpdateMode) {
 }
 
 // the "main" function of cargo dev fmt
-pub fn run(update_mode: UpdateMode) {
-    fmt_syms(update_mode);
+pub fn run(mode: UpdateMode) {
+    let mut updater = FileUpdater::from_mode(mode);
+    fmt_syms(&mut updater);
     new_parse_cx(|cx| {
         let mut lint_data = cx.parse_lint_decls();
         let mut conf_data = cx.parse_conf_mac();
         cx.dcx.exit_on_err();
 
-        let mut updater = FileUpdater::default();
         let copy: &mut dyn FnMut(&str, &mut String) = &mut |src, dst| dst.push_str(src);
 
         #[expect(clippy::mutable_key_type)]
@@ -122,28 +121,23 @@ pub fn run(update_mode: UpdateMode) {
             let file = passes[0].decl_sp.file;
             let mut lints = lints.remove(file);
             let lints = lints.as_deref_mut().unwrap_or_default();
-            updater.update_loaded_file_checked("cargo dev fmt", update_mode, file, &mut |_, src, dst| {
+            updater.update_loaded_file("cargo dev fmt", file, &mut |_, src, dst| {
                 gen_sorted_lints_file(src, dst, lints, passes, &mut ranges, copy);
                 UpdateStatus::from_changed(src != dst)
             });
         }
         for (&file, lints) in &mut lints {
-            updater.update_loaded_file_checked("cargo dev fmt", update_mode, file, &mut |_, src, dst| {
+            updater.update_loaded_file("cargo dev fmt", file, &mut |_, src, dst| {
                 gen_sorted_lints_file(src, dst, lints, &mut [], &mut ranges, copy);
                 UpdateStatus::from_changed(src != dst)
             });
         }
 
-        updater.update_loaded_file_checked(
-            "cargo dev fmt",
-            update_mode,
-            conf_data.decl_sp.file,
-            &mut |_, src, dst| {
-                conf_data.gen_file(src, dst);
-                UpdateStatus::from_changed(src != dst)
-            },
-        );
+        updater.update_loaded_file("cargo dev fmt", conf_data.decl_sp.file, &mut |_, src, dst| {
+            conf_data.gen_file(src, dst);
+            UpdateStatus::from_changed(src != dst)
+        });
     });
 
-    run_rustfmt(update_mode);
+    run_rustfmt(mode);
 }

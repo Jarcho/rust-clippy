@@ -3,7 +3,7 @@ use clippy_internal::ir::{
 };
 use clippy_internal::lex::Cursor;
 use clippy_internal::utils::{FileUpdater, VecBuf, Version, create_new_dir};
-use clippy_internal::{SourceFile, Span, UpdateMode, gen_sorted_lints_file, new_parse_cx};
+use clippy_internal::{SourceFile, Span, gen_sorted_lints_file, new_parse_cx};
 use std::collections::hash_map::Entry;
 use std::fmt::Write as _;
 use std::path::{self, MAIN_SEPARATOR_STR as PATH_SEP, PathBuf};
@@ -64,7 +64,7 @@ pub fn create(clippy_version: Version, pass: &str, name: &str, group: &str, has_
             opts: "",
         };
 
-        let mut updater = FileUpdater::default();
+        let mut updater = FileUpdater::for_update();
 
         // Edit clippy source to add the new lint.
         if let Some(pass_idx) = pass_idx {
@@ -182,7 +182,7 @@ pub fn create(clippy_version: Version, pass: &str, name: &str, group: &str, has_
             );
         }
 
-        data.gen_decls(UpdateMode::Change);
+        data.gen_decls(&mut updater);
     });
 }
 

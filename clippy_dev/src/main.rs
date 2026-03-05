@@ -22,7 +22,7 @@ use clippy_dev::{
     Dev, DevCommand, ReleaseCommand, ReleaseSubcommand, RemoveCommand, RemoveSubcommand, SetupCommand, SetupSubcommand,
     SyncCommand, SyncSubcommand,
 };
-use clippy_internal::{ClippyInfo, UpdateMode, fmt, new_parse_cx};
+use clippy_internal::{ClippyInfo, FileUpdater, UpdateMode, fmt, new_parse_cx};
 use std::env;
 
 fn main() {
@@ -46,7 +46,7 @@ fn main() {
         DevCommand::UpdateLints { check } => new_parse_cx(|cx| {
             let data = cx.parse_lint_decls();
             cx.dcx.exit_on_err();
-            data.gen_decls(UpdateMode::from_check(check));
+            data.gen_decls(&mut FileUpdater::from_check(check));
         }),
         DevCommand::NewLint {
             pass,
