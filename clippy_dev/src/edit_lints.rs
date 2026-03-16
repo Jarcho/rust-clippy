@@ -1,5 +1,5 @@
 use crate::ir::{ActiveLintData, DeprecatedLintData, Lint, LintData, LintName, ParsedLints, RenamedLintData};
-use crate::parse::cursor::{self, Capture, Cursor};
+use crate::lex::{Capture, Cursor};
 use crate::utils::{
     ErrAction, FileUpdater, UpdateMode, UpdateStatus, Version, delete_dir_if_exists, delete_file_if_exists,
     expect_action, try_rename_dir, try_rename_file, walk_dir_no_dot_or_target,
@@ -385,6 +385,9 @@ fn rename_update_fn<'a>(
     new_name: &'a str,
     rename_mod: bool,
 ) -> impl use<'a> + FnMut(&Path, &str, &mut String) -> UpdateStatus {
+    #[allow(clippy::enum_glob_use)]
+    use crate::lex::Pat::*;
+
     let old_name_pascal = snake_to_pascal(old_name);
     let new_name_pascal = snake_to_pascal(new_name);
     let old_name_upper = old_name.to_ascii_uppercase();
@@ -404,9 +407,7 @@ fn rename_update_fn<'a>(
                     match text {
                         // clippy::line_name or clippy::lint-name
                         "clippy" => {
-                            if cursor
-                                .match_all(&[cursor::Pat::DoubleColon, cursor::Pat::CaptureIdent], &mut captures)
-                                .is_ok()
+                            if cursor.match_all(&[DoubleColon, CaptureIdent], &mut captures).is_ok()
                                 && cursor.get_text(captures[0]) == old_name
                             {
                                 dst.push_str(&src[copy_pos as usize..captures[0].pos as usize]);
@@ -469,9 +470,7 @@ fn rename_update_fn<'a>(
                 },
                 // ::lint_name
                 TokenKind::Colon
-                    if cursor
-                        .match_all(&[cursor::Pat::DoubleColon, cursor::Pat::CaptureIdent], &mut captures)
-                        .is_ok()
+                    if cursor.match_all(&[DoubleColon, CaptureIdent], &mut captures).is_ok()
                         && cursor.get_text(captures[0]) == old_name =>
                 {
                     dst.push_str(&src[copy_pos as usize..captures[0].pos as usize]);

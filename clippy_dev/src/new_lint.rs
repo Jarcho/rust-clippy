@@ -1,6 +1,6 @@
 use crate::generate::gen_sorted_lints_file;
 use crate::ir::{ActiveLint, ActiveLintData, Lint, LintData, LintPass, LintPassCtor, LintPassKind, LintPassMac};
-use crate::parse::cursor::Cursor;
+use crate::lex::Cursor;
 use crate::utils::{FileUpdater, VecBuf, Version, create_new_dir};
 use crate::{SourceFile, Span, UpdateMode, new_parse_cx};
 use std::collections::hash_map::Entry;

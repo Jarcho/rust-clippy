@@ -38,6 +38,7 @@ pub mod sync;
 
 mod diag;
 mod generate;
+mod lex;
 mod parse;
 mod utils;
 

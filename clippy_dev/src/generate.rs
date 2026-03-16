@@ -1,5 +1,5 @@
 use crate::ir::{ActiveLint, ConfDef, LintData, LintPass, LintPassCtor, LintPassCtorArg, LintPassKind, ParsedLints};
-use crate::parse::cursor::Cursor;
+use crate::lex::Cursor;
 use crate::utils::{
     FileUpdater, UpdateMode, UpdateStatus, VecBuf, path_as_crate_mod, slice_groups, update_text_region_fn,
 };

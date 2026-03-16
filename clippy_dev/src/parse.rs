@@ -1,10 +1,8 @@
-pub mod cursor;
-
-use self::cursor::{Capture, Cursor, IdentPat, UnexpectedErr};
 use crate::ir::{
     ActiveLintData, ConfDef, ConfOpt, DeprecatedLintData, Lint, LintData, LintMap, LintName, LintPass, LintPassCtor,
     LintPassCtorArg, LintPassCtorArgs, LintPassMac, LintPasses, LintTool, ParsedLints, RenamedLintData,
 };
+use crate::lex::{Capture, Cursor, IdentPat, Pat, UnexpectedErr};
 use crate::utils::{ErrAction, Scoped, StrBuf, VecBuf, expect_action, walk_dir_no_dot_or_target};
 use crate::{DiagCx, SourceFile, Span};
 use core::panic::Location;
@@ -99,7 +97,7 @@ impl<'cx> ParseCxImpl<'cx> {
 
     pub fn parse_conf_mac(&mut self) -> ConfDef<'cx> {
         #[allow(clippy::enum_glob_use)]
-        use cursor::Pat::*;
+        use crate::lex::Pat::*;
 
         let file = &*self.source_files.alloc(SourceFile::load(self.str_buf.alloc_collect(
             self.arena,
@@ -234,7 +232,7 @@ impl<'cx> ParseCxImpl<'cx> {
     #[expect(clippy::too_many_lines)]
     fn parse_lint_src_file(&mut self, data: &mut ParsedLints<'cx>, file: &'cx SourceFile<'cx>) {
         #[allow(clippy::enum_glob_use)]
-        use cursor::Pat::*;
+        use crate::lex::Pat::*;
 
         let mut cursor = Cursor::new(&file.contents);
         let mut captures = [Capture::EMPTY; 6];
@@ -246,7 +244,7 @@ impl<'cx> ParseCxImpl<'cx> {
             match cursor.get_text(mac_name) {
                 "declare_clippy_lint" if cursor.eat_bang() => {
                     #[rustfmt::skip]
-                    static DECL_START: &[cursor::Pat] = &[
+                    static DECL_START: &[Pat] = &[
                         // { /// docs
                         OpenBrace, CaptureDocLines,
                         // #[clippy::version = "version"]
@@ -257,7 +255,7 @@ impl<'cx> ParseCxImpl<'cx> {
                         CaptureLineComments, CaptureIdent, Comma, CaptureLitStr,
                     ];
                     #[rustfmt::skip]
-                    static OPTION: &[cursor::Pat] = &[
+                    static OPTION: &[Pat] = &[
                         // @option = value
                         AnyComments, At, AnyIdent, Eq, Lit,
                     ];
@@ -392,7 +390,7 @@ impl<'cx> ParseCxImpl<'cx> {
 
     fn parse_lint_impl(&mut self, file: &'cx SourceFile<'cx>, cursor: &mut Cursor<'cx>) -> Option<PassImpl<'cx>> {
         #[allow(clippy::enum_glob_use)]
-        use cursor::Pat::*;
+        use crate::lex::Pat::*;
 
         cursor.opt_match_all(&[Lt, Lifetime, Gt], &mut []).ok()?;
         let name = cursor.capture_ident().map(|c| cursor.get_text(c))?;
@@ -472,10 +470,10 @@ impl<'cx> ParseCxImpl<'cx> {
 
     fn parse_deprecated_lints(&mut self, data: &mut ParsedLints<'cx>) {
         #[allow(clippy::enum_glob_use)]
-        use cursor::Pat::*;
+        use crate::lex::Pat::*;
 
         #[rustfmt::skip]
-        static DECL_TOKENS: &[cursor::Pat] = &[
+        static DECL_TOKENS: &[Pat] = &[
             // #[clippy::version = "version"]
             Pound, OpenBracket, Ident(IdentPat::clippy), DoubleColon,
             Ident(IdentPat::version), Eq, CaptureLitStr, CloseBracket,
@@ -483,13 +481,13 @@ impl<'cx> ParseCxImpl<'cx> {
             OpenParen, CaptureLitStr, Comma, CaptureLitStr, CloseParen,
         ];
         #[rustfmt::skip]
-        static DEPRECATED_TOKENS: &[cursor::Pat] = &[
+        static DEPRECATED_TOKENS: &[Pat] = &[
             // !{ DEPRECATED(DEPRECATED_VERSION) = [
             Bang, OpenBrace, Ident(IdentPat::DEPRECATED), OpenParen,
             Ident(IdentPat::DEPRECATED_VERSION), CloseParen, Eq, OpenBracket,
         ];
         #[rustfmt::skip]
-        static RENAMED_TOKENS: &[cursor::Pat] = &[
+        static RENAMED_TOKENS: &[Pat] = &[
             // !{ RENAMED(RENAMED_VERSION) = [
             Bang, OpenBrace, Ident(IdentPat::RENAMED), OpenParen,
             Ident(IdentPat::RENAMED_VERSION), CloseParen, Eq, OpenBracket,
