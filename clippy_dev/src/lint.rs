@@ -1,4 +1,4 @@
-use crate::utils::{ErrAction, cargo_cmd, expect_action, run_exit_on_err};
+use clippy_internal::utils::{ErrAction, cargo_cmd, expect_action, run_exit_on_err};
 use std::process::Command;
 use std::{env, fs};
 

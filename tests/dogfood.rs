@@ -36,6 +36,7 @@ fn dogfood() {
     for package in [
         "./",
         "clippy_dev",
+        "clippy_internal",
         "clippy_lints_internal",
         "clippy_lints",
         "clippy_utils",

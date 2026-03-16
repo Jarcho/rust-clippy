@@ -1,5 +1,5 @@
-use crate::utils::{FileUpdater, update_text_region_fn};
 use chrono::offset::Utc;
+use clippy_internal::utils::{FileUpdater, update_text_region_fn};
 use std::fmt::Write;
 
 pub fn update_nightly() {

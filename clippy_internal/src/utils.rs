@@ -750,6 +750,7 @@ pub fn slice_groups_mut<T>(
 pub struct StrBuf(String);
 impl StrBuf {
     /// Creates a new buffer with the specified initial capacity.
+    #[must_use]
     pub fn with_capacity(cap: usize) -> Self {
         Self(String::with_capacity(cap))
     }
@@ -869,6 +870,7 @@ impl StrBuf {
 pub struct VecBuf<T>(Vec<T>);
 impl<T> VecBuf<T> {
     /// Creates a new buffer with the specified initial capacity.
+    #[must_use]
     pub fn with_capacity(cap: usize) -> Self {
         Self(Vec::with_capacity(cap))
     }
@@ -885,6 +887,7 @@ impl<T> VecBuf<T> {
 /// Only supports paths in the form `CRATE_NAME/src/PATH/TO/FILE.rs` using the current
 /// platform's path separator. The module path returned will use the current platform's
 /// path separator.
+#[must_use]
 pub fn path_as_crate_mod(path: &str) -> (&str, &str) {
     let Some((krate, path)) = path.split_once(path::MAIN_SEPARATOR) else {
         return ("", "");

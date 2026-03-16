@@ -4,8 +4,6 @@
     macro_metavar_expr_concat,
     new_range,
     new_range_api,
-    os_str_slice,
-    os_string_truncate,
     pattern,
     rustc_private
 )]
@@ -16,7 +14,11 @@
     unused_lifetimes,
     unused_qualifications
 )]
-#![allow(clippy::case_sensitive_file_extension_comparisons, clippy::missing_panics_doc)]
+#![allow(
+    clippy::case_sensitive_file_extension_comparisons,
+    clippy::missing_errors_doc,
+    clippy::missing_panics_doc
+)]
 
 extern crate rustc_arena;
 extern crate rustc_data_structures;
@@ -25,23 +27,16 @@ extern crate rustc_driver;
 extern crate rustc_lexer;
 extern crate termize;
 
-pub mod dogfood;
-pub mod edit_lints;
 pub mod fmt;
 pub mod ir;
-pub mod lint;
-pub mod new_lint;
-pub mod release;
-pub mod serve;
-pub mod setup;
-pub mod sync;
+pub mod lex;
+pub mod utils;
 
 mod diag;
 mod generate;
-mod lex;
 mod parse;
-mod utils;
 
 pub use self::diag::DiagCx;
+pub use self::generate::gen_sorted_lints_file;
 pub use self::parse::{ParseCx, new_parse_cx};
 pub use self::utils::{ClippyInfo, SourceFile, Span, UpdateMode};

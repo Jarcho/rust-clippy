@@ -1,4 +1,4 @@
-use crate::utils::{ErrAction, cargo_cmd, expect_action};
+use clippy_internal::utils::{ErrAction, cargo_cmd, expect_action};
 use core::fmt::Display;
 use core::mem;
 use std::path::Path;

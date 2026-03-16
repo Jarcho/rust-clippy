@@ -1,11 +1,28 @@
-#![feature(rustc_private)]
-// warn on lints, that are included in `rust-lang/rust`s bootstrap
-#![warn(rust_2018_idioms, unused_lifetimes)]
+#![feature(new_range, new_range_api, os_str_slice, os_string_truncate, rustc_private)]
+#![warn(
+    trivial_casts,
+    trivial_numeric_casts,
+    rust_2018_idioms,
+    unused_lifetimes,
+    unused_qualifications
+)]
+#![allow(clippy::case_sensitive_file_extension_comparisons, clippy::missing_panics_doc)]
 
-use clap::{Args, Parser, Subcommand};
+mod dogfood;
+mod edit_lints;
+mod lint;
+mod new_lint;
+mod release;
+mod serve;
+mod setup;
+mod sync;
+
+use clap::Parser;
 use clippy_dev::{
-    ClippyInfo, UpdateMode, dogfood, edit_lints, fmt, lint, new_lint, new_parse_cx, release, serve, setup, sync,
+    Dev, DevCommand, ReleaseCommand, ReleaseSubcommand, RemoveCommand, RemoveSubcommand, SetupCommand, SetupSubcommand,
+    SyncCommand, SyncSubcommand,
 };
+use clippy_internal::{ClippyInfo, UpdateMode, fmt, new_parse_cx};
 use std::env;
 
 fn main() {
@@ -89,275 +106,4 @@ fn main() {
             ReleaseSubcommand::BumpVersion => release::bump_version(clippy.version),
         },
     }
-}
-
-fn lint_name(name: &str) -> Result<String, String> {
-    let name = name.replace('-', "_");
-    if let Some((pre, _)) = name.split_once("::") {
-        Err(format!("lint name should not contain the `{pre}` prefix"))
-    } else if name
-        .bytes()
-        .any(|x| !matches!(x, b'_' | b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z'))
-    {
-        Err("lint name contains invalid characters".to_owned())
-    } else {
-        Ok(name)
-    }
-}
-
-#[derive(Parser)]
-#[command(name = "dev", about)]
-struct Dev {
-    #[command(subcommand)]
-    command: DevCommand,
-}
-
-#[derive(Subcommand)]
-enum DevCommand {
-    /// Bless the test output changes
-    Bless,
-    /// Runs the dogfood test
-    Dogfood {
-        #[arg(long)]
-        /// Apply the suggestions when possible
-        fix: bool,
-        #[arg(long, requires = "fix")]
-        /// Fix code even if the working directory has changes
-        allow_dirty: bool,
-        #[arg(long, requires = "fix")]
-        /// Fix code even if the working directory has staged changes
-        allow_staged: bool,
-        #[arg(long, requires = "fix")]
-        /// Fix code even if a VCS was not detected
-        allow_no_vcs: bool,
-    },
-    /// Run rustfmt on all projects and tests
-    Fmt {
-        #[arg(long)]
-        /// Use the rustfmt --check option
-        check: bool,
-    },
-    #[command(name = "update_lints")]
-    /// Updates lint registration and information from the source code
-    ///
-    /// Makes sure that: {n}
-    /// * the lint count in README.md is correct {n}
-    /// * the changelog contains markdown link references at the bottom {n}
-    /// * all lint groups include the correct lints {n}
-    /// * lint modules in `clippy_lints/*` are visible in `src/lib.rs` via `pub mod` {n}
-    /// * all lints are registered in the lint store
-    UpdateLints {
-        #[arg(long)]
-        /// Checks that `cargo dev update_lints` has been run. Used on CI.
-        check: bool,
-    },
-    #[command(name = "new_lint")]
-    /// Create a new lint and run `cargo dev update_lints`
-    NewLint {
-        #[arg(short, long, default_value = "late")]
-        /// Specify whether the lint runs during the early or late pass
-        pass: String,
-        #[arg(
-            short,
-            long,
-            value_parser = lint_name,
-        )]
-        /// Name of the new lint in snake case, ex: `fn_too_long`
-        name: String,
-        #[arg(
-            short,
-            long,
-            value_parser = [
-                "style",
-                "correctness",
-                "suspicious",
-                "complexity",
-                "perf",
-                "pedantic",
-                "restriction",
-                "cargo",
-                "nursery",
-            ],
-            default_value = "nursery",
-        )]
-        /// What category the lint belongs to
-        category: String,
-        #[arg(long)]
-        /// Add MSRV config code to the lint
-        msrv: bool,
-    },
-    /// Support for setting up your personal development environment
-    Setup(SetupCommand),
-    /// Support for removing changes done by the setup command
-    Remove(RemoveCommand),
-    /// Launch a local 'ALL the Clippy Lints' website in a browser
-    Serve {
-        #[arg(short, long, default_value = "8000")]
-        /// Local port for the http server
-        port: u16,
-        #[arg(long)]
-        /// Which lint's page to load initially (optional)
-        lint: Option<String>,
-    },
-    #[expect(clippy::doc_markdown)]
-    /// Manually run clippy on a file or package
-    ///
-    /// ## Examples
-    ///
-    /// Lint a single file: {n}
-    ///     cargo dev lint tests/ui/attrs.rs
-    ///
-    /// Lint a package directory: {n}
-    ///     cargo dev lint tests/ui-cargo/wildcard_dependencies/fail {n}
-    ///     cargo dev lint ~/my-project
-    ///
-    /// Run rustfix: {n}
-    ///     cargo dev lint ~/my-project -- --fix
-    ///
-    /// Set lint levels: {n}
-    ///     cargo dev lint file.rs -- -W clippy::pedantic {n}
-    ///     cargo dev lint ~/my-project -- -- -W clippy::pedantic
-    Lint {
-        /// The Rust edition to use
-        #[arg(long, default_value = "2024")]
-        edition: String,
-        /// The path to a file or package directory to lint
-        path: String,
-        /// Pass extra arguments to cargo/clippy-driver
-        args: Vec<String>,
-    },
-    #[command(name = "rename_lint")]
-    /// Rename a lint
-    RenameLint {
-        /// The name of the lint to rename
-        #[arg(value_parser = lint_name)]
-        old_name: String,
-        #[arg(value_parser = lint_name)]
-        /// The new name of the lint
-        new_name: String,
-    },
-    /// Deprecate the given lint
-    Deprecate {
-        /// The name of the lint to deprecate
-        #[arg(value_parser = lint_name)]
-        name: String,
-        #[arg(long, short)]
-        /// The reason for deprecation
-        reason: String,
-    },
-    /// Sync between the rust repo and the Clippy repo
-    Sync(SyncCommand),
-    /// Manage Clippy releases
-    Release(ReleaseCommand),
-    /// Marks a lint as uplifted into rustc and removes its code
-    Uplift {
-        /// The name of the lint to uplift
-        #[arg(value_parser = lint_name)]
-        old_name: String,
-        /// The name of the lint in rustc
-        #[arg(value_parser = lint_name)]
-        new_name: Option<String>,
-    },
-}
-
-#[derive(Args)]
-struct SetupCommand {
-    #[command(subcommand)]
-    subcommand: SetupSubcommand,
-}
-
-#[derive(Subcommand)]
-enum SetupSubcommand {
-    /// Alter dependencies so Intellij Rust can find rustc internals
-    Intellij {
-        #[arg(long)]
-        /// Remove the dependencies added with 'cargo dev setup intellij'
-        remove: bool,
-        #[arg(long, short, conflicts_with = "remove")]
-        /// The path to a rustc repo that will be used for setting the dependencies
-        repo_path: String,
-    },
-    /// Add a pre-commit git hook that formats your code to make it look pretty
-    GitHook {
-        #[arg(long)]
-        /// Remove the pre-commit hook added with 'cargo dev setup git-hook'
-        remove: bool,
-        #[arg(long, short)]
-        /// Forces the override of an existing git pre-commit hook
-        force_override: bool,
-    },
-    /// Install a rustup toolchain pointing to the local clippy build
-    ///
-    /// This creates a toolchain with symlinks pointing at
-    /// `target/.../{clippy-driver,cargo-clippy}`, rebuilds of the project will be reflected in the
-    /// created toolchain unless `--standalone` is passed
-    Toolchain {
-        #[arg(long, short)]
-        /// Create a standalone toolchain by copying the clippy binaries instead
-        /// of symlinking them
-        ///
-        /// Use this for example to create a toolchain, make a small change and then make another
-        /// toolchain with a different name in order to easily compare the two
-        standalone: bool,
-        #[arg(long, short)]
-        /// Override an existing toolchain
-        force: bool,
-        #[arg(long, short)]
-        /// Point to --release clippy binary
-        release: bool,
-        #[arg(long, short, default_value = "clippy")]
-        /// Name of the toolchain
-        name: String,
-    },
-    /// Add several tasks to vscode for formatting, validation and testing
-    VscodeTasks {
-        #[arg(long)]
-        /// Remove the tasks added with 'cargo dev setup vscode-tasks'
-        remove: bool,
-        #[arg(long, short)]
-        /// Forces the override of existing vscode tasks
-        force_override: bool,
-    },
-}
-
-#[derive(Args)]
-struct RemoveCommand {
-    #[command(subcommand)]
-    subcommand: RemoveSubcommand,
-}
-
-#[derive(Subcommand)]
-enum RemoveSubcommand {
-    /// Remove the dependencies added with 'cargo dev setup intellij'
-    Intellij,
-    /// Remove the pre-commit git hook
-    GitHook,
-    /// Remove the tasks added with 'cargo dev setup vscode-tasks'
-    VscodeTasks,
-}
-
-#[derive(Args)]
-struct SyncCommand {
-    #[command(subcommand)]
-    subcommand: SyncSubcommand,
-}
-
-#[derive(Subcommand)]
-enum SyncSubcommand {
-    #[command(name = "update_nightly")]
-    /// Update nightly version in `rust-toolchain.toml` and `clippy_utils`
-    UpdateNightly,
-}
-
-#[derive(Args)]
-struct ReleaseCommand {
-    #[command(subcommand)]
-    subcommand: ReleaseSubcommand,
-}
-
-#[derive(Subcommand)]
-enum ReleaseSubcommand {
-    #[command(name = "bump_version")]
-    /// Bump the version in the Cargo.toml files
-    BumpVersion,
 }

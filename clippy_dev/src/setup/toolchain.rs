@@ -1,4 +1,4 @@
-use crate::utils::{cargo_cmd, run_exit_on_err};
+use clippy_internal::utils::{cargo_cmd, run_exit_on_err};
 use std::env::consts::EXE_SUFFIX;
 use std::env::current_dir;
 use std::ffi::OsStr;

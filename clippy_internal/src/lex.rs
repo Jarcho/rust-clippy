@@ -4,7 +4,9 @@ use core::panic::Location;
 use core::range::Range;
 use core::{ptr, slice};
 use rustc_arena::DroplessArena;
-use rustc_lexer::{self as lex, DocStyle, LiteralKind, Token, TokenKind};
+use rustc_lexer as lex;
+
+pub use rustc_lexer::{DocStyle, LiteralKind, Token, TokenKind};
 
 /// A token pattern used for searching and matching by the [`Cursor`].
 ///
@@ -43,6 +45,7 @@ pub enum Pat {
     Semi,
 }
 impl Pat {
+    #[must_use]
     pub fn desc(self) -> &'static str {
         match self {
             Self::AnyComments => "comments",

@@ -1,4 +1,4 @@
-use crate::utils::{FileUpdater, UpdateStatus, Version, parse_cargo_package};
+use clippy_internal::utils::{FileUpdater, UpdateStatus, Version, parse_cargo_package};
 use std::fmt::Write;
 
 static CARGO_TOML_FILES: &[&str] = &[

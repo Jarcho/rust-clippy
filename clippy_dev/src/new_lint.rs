@@ -1,8 +1,9 @@
-use crate::generate::gen_sorted_lints_file;
-use crate::ir::{ActiveLint, ActiveLintData, Lint, LintData, LintPass, LintPassCtor, LintPassKind, LintPassMac};
-use crate::lex::Cursor;
-use crate::utils::{FileUpdater, VecBuf, Version, create_new_dir};
-use crate::{SourceFile, Span, UpdateMode, new_parse_cx};
+use clippy_internal::ir::{
+    ActiveLint, ActiveLintData, Lint, LintData, LintPass, LintPassCtor, LintPassKind, LintPassMac,
+};
+use clippy_internal::lex::Cursor;
+use clippy_internal::utils::{FileUpdater, VecBuf, Version, create_new_dir};
+use clippy_internal::{SourceFile, Span, UpdateMode, gen_sorted_lints_file, new_parse_cx};
 use std::collections::hash_map::Entry;
 use std::fmt::Write as _;
 use std::path::{self, MAIN_SEPARATOR_STR as PATH_SEP, PathBuf};

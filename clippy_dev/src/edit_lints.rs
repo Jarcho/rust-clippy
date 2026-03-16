@@ -1,12 +1,11 @@
-use crate::ir::{ActiveLintData, DeprecatedLintData, Lint, LintData, LintName, ParsedLints, RenamedLintData};
-use crate::lex::{Capture, Cursor};
-use crate::utils::{
+use clippy_internal::ir::{ActiveLintData, DeprecatedLintData, Lint, LintData, LintName, ParsedLints, RenamedLintData};
+use clippy_internal::lex::{Capture, Cursor, TokenKind};
+use clippy_internal::utils::{
     ErrAction, FileUpdater, UpdateMode, UpdateStatus, Version, delete_dir_if_exists, delete_file_if_exists,
     expect_action, try_rename_dir, try_rename_file, walk_dir_no_dot_or_target,
 };
-use crate::{ParseCx, SourceFile, Span};
+use clippy_internal::{ParseCx, SourceFile, Span};
 use core::mem;
-use rustc_lexer::TokenKind;
 use std::collections::hash_map::Entry;
 use std::ffi::OsString;
 use std::path::Path;
@@ -386,7 +385,7 @@ fn rename_update_fn<'a>(
     rename_mod: bool,
 ) -> impl use<'a> + FnMut(&Path, &str, &mut String) -> UpdateStatus {
     #[allow(clippy::enum_glob_use)]
-    use crate::lex::Pat::*;
+    use clippy_internal::lex::Pat::*;
 
     let old_name_pascal = snake_to_pascal(old_name);
     let new_name_pascal = snake_to_pascal(new_name);
