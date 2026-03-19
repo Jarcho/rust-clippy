@@ -11,6 +11,7 @@ pub struct DiagCx {
     out: RefCell<anstream::Stderr>,
     renderer: Renderer,
     has_err: Cell<bool>,
+    has_phase_err: Cell<bool>,
 }
 impl Default for DiagCx {
     fn default() -> Self {
@@ -19,6 +20,7 @@ impl Default for DiagCx {
             out: RefCell::new(anstream::stderr()),
             renderer: Renderer::styled().term_width(width),
             has_err: Cell::new(false),
+            has_phase_err: Cell::new(false),
         }
     }
 }
@@ -57,6 +59,10 @@ impl DiagCx {
             ]);
         }
         process::exit(1);
+    }
+
+    pub fn take_phase_err(&self) -> bool {
+        self.has_phase_err.replace(false)
     }
 }
 

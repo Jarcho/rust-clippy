@@ -324,12 +324,6 @@ impl LintPass<'_> {
 }
 
 impl ConfDef<'_> {
-    pub fn gen_file(&mut self, src: &str, dst: &mut String) {
-        dst.push_str(&src[..self.decl_sp.range.start as usize]);
-        self.gen_mac(src, dst);
-        dst.push_str(&src[self.decl_sp.range.end as usize..]);
-    }
-
     pub fn gen_mac(&mut self, src: &str, dst: &mut String) {
         self.opts.sort_unstable_by_key(|o| o.name);
         dst.push_str("define_Conf! {");

@@ -151,7 +151,7 @@ pub fn create(dcx: &DiagCx, clippy_version: Version, pass: &str, name: &str, gro
                 buf.push(name_snake);
                 cx.arena.alloc_slice(buf)
             });
-            updater.change_loaded_file(data.decl_sp.file, |src, dst| data.gen_file(src, dst));
+            data.fmt_def_file(&mut updater);
         }
 
         // Create test files.

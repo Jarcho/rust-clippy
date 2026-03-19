@@ -22,7 +22,7 @@ use clippy_dev::{
     Dev, DevCommand, ReleaseCommand, ReleaseSubcommand, RemoveCommand, RemoveSubcommand, SetupCommand, SetupSubcommand,
     SyncCommand, SyncSubcommand,
 };
-use clippy_internal::{ClippyInfo, DiagCx, FileUpdater, UpdateMode, fmt, new_parse_cx};
+use clippy_internal::{ClippyInfo, DiagCx, FileUpdater, UpdateMode, fmt_syms_file, new_parse_cx, run_rustfmt};
 use std::env;
 
 fn main() {
@@ -43,15 +43,24 @@ fn main() {
             allow_staged,
             allow_no_vcs,
         } => dogfood::dogfood(fix, allow_dirty, allow_staged, allow_no_vcs),
-        DevCommand::Fmt { check } => fmt::run(&dcx, UpdateMode::from_check(check)),
-        DevCommand::UpdateLints { check } => new_parse_cx(&dcx, |cx| {
+        DevCommand::Fmt => new_parse_cx(&dcx, |cx| {
+            let mut updater = FileUpdater::new_change(cx.dcx);
+            let mut lint_data = cx.parse_lint_decls();
+            if !cx.dcx.take_phase_err() {
+                lint_data.fmt_decl_files(&mut updater);
+            }
+            let mut conf_data = cx.parse_conf_mac();
+            if !cx.dcx.take_phase_err() {
+                conf_data.fmt_def_file(&mut updater);
+            }
+            fmt_syms_file(&mut updater);
+            run_rustfmt(cx.dcx, UpdateMode::Change);
+            cx.dcx.exit_on_err();
+        }),
+        DevCommand::UpdateLints => new_parse_cx(&dcx, |cx| {
             let data = cx.parse_lint_decls();
             cx.dcx.exit_on_err();
-            data.gen_decls(&mut FileUpdater::new(
-                cx.dcx,
-                UpdateMode::from_check(check),
-                "cargo dev update_lints",
-            ));
+            data.gen_decls(&mut FileUpdater::new_change(cx.dcx));
             cx.dcx.exit_on_err();
         }),
         DevCommand::NewLint {

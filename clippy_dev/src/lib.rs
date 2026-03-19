@@ -44,11 +44,7 @@ pub enum DevCommand {
         allow_no_vcs: bool,
     },
     /// Run rustfmt on all projects and tests
-    Fmt {
-        #[arg(long)]
-        /// Use the rustfmt --check option
-        check: bool,
-    },
+    Fmt,
     #[command(name = "update_lints")]
     /// Updates lint registration and information from the source code
     ///
@@ -58,11 +54,7 @@ pub enum DevCommand {
     /// * all lint groups include the correct lints {n}
     /// * lint modules in `clippy_lints/*` are visible in `src/lib.rs` via `pub mod` {n}
     /// * all lints are registered in the lint store
-    UpdateLints {
-        #[arg(long)]
-        /// Checks that `cargo dev update_lints` has been run. Used on CI.
-        check: bool,
-    },
+    UpdateLints,
     #[command(name = "new_lint")]
     /// Create a new lint and run `cargo dev update_lints`
     NewLint {

@@ -1,14 +1,15 @@
+use crate::DiagCx;
 use crate::generate::gen_sorted_lints_file;
+use crate::ir::{ConfDef, ParsedLints};
 use crate::utils::{
     ErrAction, FileUpdater, UpdateMode, UpdateStatus, VecBuf, expect_action, run_with_output, split_args_for_threads,
     walk_dir_no_dot_or_target,
 };
-use crate::{DiagCx, new_parse_cx};
 use std::fmt::Write;
 use std::process::{Command, Stdio};
 
 /// Format the symbols list
-fn fmt_syms(updater: &mut FileUpdater<'_>) {
+pub fn fmt_syms_file(updater: &mut FileUpdater<'_>) {
     updater.update_file(
         "clippy_utils/src/sym.rs",
         &mut |_, text: &str, new_text: &mut String| {
@@ -28,16 +29,13 @@ fn fmt_syms(updater: &mut FileUpdater<'_>) {
                 lines.join(",\n    "),
             )
             .unwrap();
-            if text == new_text {
-                UpdateStatus::Unchanged
-            } else {
-                UpdateStatus::Changed
-            }
+            UpdateStatus::from_changed(text != new_text)
         },
     );
 }
 
-fn run_rustfmt(dcx: &DiagCx, mode: UpdateMode) {
+/// Runs rustfmt on all files.
+pub fn run_rustfmt(dcx: &DiagCx, mode: UpdateMode) {
     let mut rustfmt_path = String::from_utf8(run_with_output(
         "rustup which rustfmt",
         Command::new("rustup").args(["which", "rustfmt"]),
@@ -83,7 +81,7 @@ fn run_rustfmt(dcx: &DiagCx, mode: UpdateMode) {
                 if let Some(mut stderr) = child.stderr.take() {
                     dcx.emit_raw_err_from(&mut stderr);
                 }
-                check_failed = false;
+                check_failed = true;
             },
             (UpdateMode::Change, Err(_)) => {
                 if let Some(mut stderr) = child.stderr.take() {
@@ -97,22 +95,15 @@ fn run_rustfmt(dcx: &DiagCx, mode: UpdateMode) {
     }
 }
 
-// the "main" function of cargo dev fmt
-pub fn run(dcx: &DiagCx, mode: UpdateMode) {
-    new_parse_cx(dcx, |cx| {
-        let mut lint_data = cx.parse_lint_decls();
-        let mut conf_data = cx.parse_conf_mac();
-        cx.dcx.exit_on_err();
-
-        let mut updater = FileUpdater::new(cx.dcx, mode, "cargo dev fmt");
-        fmt_syms(&mut updater);
-
+impl ParsedLints<'_> {
+    /// Formats and sorts lint and lint pass declarations.
+    pub fn fmt_decl_files(&mut self, updater: &mut FileUpdater<'_>) {
         let copy: &mut dyn FnMut(&str, &mut String) = &mut |src, dst| dst.push_str(src);
 
         #[expect(clippy::mutable_key_type)]
-        let mut lints = lint_data.lints.mk_by_file_map();
+        let mut lints = self.lints.mk_by_file_map();
         let mut ranges = VecBuf::with_capacity(256);
-        for passes in lint_data.lint_passes.iter_by_file_mut() {
+        for passes in self.lint_passes.iter_by_file_mut() {
             let file = passes[0].decl_sp.file;
             let mut lints = lints.remove(file);
             let lints = lints.as_deref_mut().unwrap_or_default();
@@ -127,13 +118,18 @@ pub fn run(dcx: &DiagCx, mode: UpdateMode) {
                 UpdateStatus::from_changed(src != dst)
             });
         }
+    }
+}
 
-        updater.update_loaded_file(conf_data.decl_sp.file, &mut |_, src, dst| {
-            conf_data.gen_file(src, dst);
+impl ConfDef<'_> {
+    /// Formats and sorts the config declaration.
+    pub fn fmt_def_file(&mut self, updater: &mut FileUpdater<'_>) {
+        updater.update_loaded_file(self.decl_sp.file, &mut |_, src, dst| {
+            dst.push_str(&src[..self.decl_sp.range.start as usize]);
+            self.gen_mac(src, dst);
+
+            dst.push_str(&src[self.decl_sp.range.end as usize..]);
             UpdateStatus::from_changed(src != dst)
         });
-
-        run_rustfmt(cx.dcx, mode);
-        cx.dcx.exit_on_err();
-    });
+    }
 }

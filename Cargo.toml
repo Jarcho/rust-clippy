@@ -33,6 +33,7 @@ color-print = "0.3.4"
 anstream = "0.6.18"
 
 [dev-dependencies]
+clippy_internal = { path = "clippy_internal" }
 cargo_metadata = "0.18.1"
 ui_test = "0.30.2"
 regex = "1.5.5"

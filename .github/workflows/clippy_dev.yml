@@ -22,15 +22,12 @@ jobs:
         persist-credentials: false
 
     # Run
+    - name: Internal checks
+      run: cargo test -p clippy_internal --test check
+
     - name: Build
-      run: cargo build
+      run: cargo build --manifest-path clippy_dev/Cargo.toml
       working-directory: clippy_dev
-
-    - name: Test update_lints
-      run: cargo dev update_lints --check
-
-    - name: Test fmt
-      run: cargo dev fmt --check
 
     - name: Test cargo dev new lint
       env:

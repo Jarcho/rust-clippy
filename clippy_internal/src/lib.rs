@@ -28,16 +28,19 @@ extern crate rustc_driver;
 extern crate rustc_lexer;
 extern crate termize;
 
-pub mod fmt;
 pub mod ir;
 pub mod lex;
 pub mod utils;
 
+mod check;
 mod diag;
+mod fmt;
 mod generate;
 mod parse;
 
+pub use self::check::run_checks;
 pub use self::diag::DiagCx;
+pub use self::fmt::{fmt_syms_file, run_rustfmt};
 pub use self::generate::gen_sorted_lints_file;
 pub use self::parse::{ParseCx, new_parse_cx};
 pub use self::utils::{ClippyInfo, FileUpdater, SourceFile, Span, UpdateMode};
