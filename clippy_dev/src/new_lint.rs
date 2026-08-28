@@ -375,6 +375,15 @@ impl ModPos {
             kind: PosKind::NewList,
         }
     }
+
+    fn insertion_text(self, mod_name: &str) -> [&str; 3] {
+        match self.kind {
+            PosKind::NewList if self.pos == 0 => ["mod ", mod_name, ";\n\n"],
+            PosKind::NewList => ["\n\nmod ", mod_name, ";"],
+            PosKind::Name => [mod_name, ";\nmod ", ""],
+            PosKind::End => ["\nmod ", mod_name, ";"],
+        }
+    }
 }
 
 /// Copies the source text to the destination adding a module declaration if `add_mod` is true.
@@ -385,12 +394,7 @@ fn mk_sorted_lints_copy_fn(mut add_mod: bool, mod_name: &str) -> impl FnMut(&str
             let pos = find_mod_decl_after(&mut Cursor::new(src), mod_name);
             let (pre, post) = src.split_at(pos.pos as usize);
             dst.push_str(pre);
-            dst.extend(match pos.kind {
-                PosKind::NewList if pos.pos == 0 => ["mod ", mod_name, ";\n\n"],
-                PosKind::NewList => ["\n\nmod ", mod_name, ";"],
-                PosKind::Name => [mod_name, ";\nmod ", ""],
-                PosKind::End => ["\nmod ", mod_name, ";"],
-            });
+            dst.extend(pos.insertion_text(mod_name));
             dst.push_str(post);
             return;
         }
