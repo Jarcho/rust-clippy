@@ -11,7 +11,31 @@ use rustc_lint::LateContext;
 use rustc_middle::ty::{Ty, TypeVisitableExt as _};
 use rustc_span::Span;
 
-use super::NEEDLESS_TYPE_CAST;
+declare_clippy_lint! {
+    /// ### What it does
+    /// Checks for bindings (constants, statics, or let bindings) that are defined
+    /// with one numeric type but are consistently cast to a different type in all usages.
+    ///
+    /// ### Why is this bad?
+    /// If a binding is always cast to a different type when used, it would be clearer
+    /// and more efficient to define it with the target type from the start.
+    ///
+    /// ### Example
+    /// ```no_run
+    /// const SIZE: u16 = 15;
+    /// let arr: [u8; SIZE as usize] = [0; SIZE as usize];
+    /// ```
+    ///
+    /// Use instead:
+    /// ```no_run
+    /// const SIZE: usize = 15;
+    /// let arr: [u8; SIZE] = [0; SIZE];
+    /// ```
+    #[clippy::version = "1.94.0"]
+    pub NEEDLESS_TYPE_CAST,
+    nursery,
+    "binding defined with one type but always cast to another"
+}
 
 struct BindingInfo<'a> {
     source_ty: Ty<'a>,
