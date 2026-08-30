@@ -1,4 +1,4 @@
-use super::{Attribute, UNNECESSARY_CLIPPY_CFG};
+use super::Attribute;
 use clippy_utils::diagnostics::{span_lint_and_note, span_lint_and_sugg};
 use clippy_utils::source::SpanExt as _;
 use itertools::Itertools as _;
@@ -6,6 +6,30 @@ use rustc_ast::AttrStyle;
 use rustc_errors::Applicability;
 use rustc_lint::{EarlyContext, Level};
 use rustc_span::sym;
+
+declare_clippy_lint! {
+    /// ### What it does
+    /// Checks for `#[cfg_attr(clippy, allow(clippy::lint))]`
+    /// and suggests to replace it with `#[allow(clippy::lint)]`.
+    ///
+    /// ### Why is this bad?
+    /// There is no reason to put clippy attributes behind a clippy `cfg` as they are not
+    /// run by anything else than clippy.
+    ///
+    /// ### Example
+    /// ```no_run
+    /// #![cfg_attr(clippy, allow(clippy::deprecated_cfg_attr))]
+    /// ```
+    ///
+    /// Use instead:
+    /// ```no_run
+    /// #![allow(clippy::deprecated_cfg_attr)]
+    /// ```
+    #[clippy::version = "1.78.0"]
+    pub UNNECESSARY_CLIPPY_CFG,
+    suspicious,
+    "usage of `cfg_attr(clippy, allow(clippy::lint))` instead of `allow(clippy::lint)`"
+}
 
 pub(super) fn check(
     cx: &EarlyContext<'_>,

@@ -56,8 +56,8 @@ static AsyncYieldsAsync_LINTS: &[&Lint] = &[
     ::clippy_lints::async_yields_async::ASYNC_YIELDS_ASYNC,
 ];
 static Attributes_LINTS: &[&Lint] = &[
-    ::clippy_lints::attrs::INLINE_ALWAYS,
-    ::clippy_lints::attrs::REPR_PACKED_WITHOUT_ABI,
+    ::clippy_lints::attrs::inline_always::INLINE_ALWAYS,
+    ::clippy_lints::attrs::repr_attributes::REPR_PACKED_WITHOUT_ABI,
 ];
 static AwaitHolding_LINTS: &[&Lint] = &[
     ::clippy_lints::await_holding_invalid::AWAIT_HOLDING_INVALID_TYPE,
@@ -1524,16 +1524,16 @@ impl LintPass for CombinedClippyEarlyPass {
     }
     fn get_lints(&self) -> LintVec {
         vec![
-            ::clippy_lints::attrs::ALLOW_ATTRIBUTES,
-            ::clippy_lints::attrs::ALLOW_ATTRIBUTES_WITHOUT_REASON,
+            ::clippy_lints::attrs::allow_attributes::ALLOW_ATTRIBUTES,
+            ::clippy_lints::attrs::allow_attributes_without_reason::ALLOW_ATTRIBUTES_WITHOUT_REASON,
             ::clippy_lints::almost_complete_range::ALMOST_COMPLETE_RANGE,
-            ::clippy_lints::attrs::BLANKET_CLIPPY_RESTRICTION_LINTS,
+            ::clippy_lints::attrs::blanket_clippy_restriction_lints::BLANKET_CLIPPY_RESTRICTION_LINTS,
             ::clippy_lints::misc_early::BUILTIN_TYPE_SHADOW,
             ::clippy_lints::cfg_not_test::CFG_NOT_TEST,
             ::clippy_lints::crate_in_macro_def::CRATE_IN_MACRO_DEF,
             ::clippy_lints::literal_representation::DECIMAL_LITERAL_REPRESENTATION,
             ::clippy_lints::definition_in_module_root::DEFINITION_IN_MODULE_ROOT,
-            ::clippy_lints::attrs::DEPRECATED_SEMVER,
+            ::clippy_lints::attrs::deprecated_semver::DEPRECATED_SEMVER,
             ::clippy_lints::disallowed_script_idents::DISALLOWED_SCRIPT_IDENTS,
             ::clippy_lints::doc::DOC_BROKEN_LINK,
             ::clippy_lints::doc::DOC_COMMENT_DOUBLE_SPACE_LINEBREAKS,
@@ -1547,7 +1547,7 @@ impl LintPass for CombinedClippyEarlyPass {
             ::clippy_lints::doc::DOC_PARAGRAPHS_MISSING_PUNCTUATION,
             ::clippy_lints::doc::DOC_SUSPICIOUS_FOOTNOTES,
             ::clippy_lints::double_parens::DOUBLE_PARENS,
-            ::clippy_lints::attrs::DUPLICATED_ATTRIBUTES,
+            ::clippy_lints::attrs::duplicated_attributes::DUPLICATED_ATTRIBUTES,
             ::clippy_lints::duplicate_mod::DUPLICATE_MOD,
             ::clippy_lints::functions::DUPLICATE_UNDERSCORE_ARGUMENT,
             ::clippy_lints::else_if_without_else::ELSE_IF_WITHOUT_ELSE,
@@ -1572,7 +1572,7 @@ impl LintPass for CombinedClippyEarlyPass {
             ::clippy_lints::doc::MISSING_PANICS_DOC,
             ::clippy_lints::doc::MISSING_SAFETY_DOC,
             ::clippy_lints::literal_representation::MISTYPED_LITERAL_SUFFIXES,
-            ::clippy_lints::attrs::MIXED_ATTRIBUTES_STYLE,
+            ::clippy_lints::attrs::mixed_attributes_style::MIXED_ATTRIBUTES_STYLE,
             ::clippy_lints::misc_early::MIXED_CASE_HEX_LITERALS,
             ::clippy_lints::module_style::MOD_MODULE_FILES,
             ::clippy_lints::multiple_bound_locations::MULTIPLE_BOUND_LOCATIONS,
@@ -1599,7 +1599,7 @@ impl LintPass for CombinedClippyEarlyPass {
             ::clippy_lints::redundant_static_lifetimes::REDUNDANT_STATIC_LIFETIMES,
             ::clippy_lints::module_style::SELF_NAMED_MODULE_FILES,
             ::clippy_lints::misc_early::SEPARATED_LITERAL_SUFFIX,
-            ::clippy_lints::attrs::SHOULD_PANIC_WITHOUT_EXPECT,
+            ::clippy_lints::attrs::should_panic_without_expect::SHOULD_PANIC_WITHOUT_EXPECT,
             ::clippy_lints::non_expressive_names::SIMILAR_NAMES,
             ::clippy_lints::single_char_lifetime_names::SINGLE_CHAR_LIFETIME_NAMES,
             ::clippy_lints::single_component_path_imports::SINGLE_COMPONENT_PATH_IMPORTS,
@@ -1622,7 +1622,7 @@ impl LintPass for CombinedClippyEarlyPass {
             ::clippy_lints::unused_rounding::UNUSED_ROUNDING,
             ::clippy_lints::unused_unit::UNUSED_UNIT,
             ::clippy_lints::literal_representation::UNUSUAL_BYTE_GROUPINGS,
-            ::clippy_lints::attrs::USELESS_ATTRIBUTE,
+            ::clippy_lints::attrs::useless_attribute::USELESS_ATTRIBUTE,
             ::clippy_lints::misc_early::ZERO_PREFIXED_LITERAL,
         ]
     }
@@ -2552,7 +2552,7 @@ impl LintPass for CombinedClippyLatePass<'_> {
             ::clippy_lints::inherent_to_string::INHERENT_TO_STRING,
             ::clippy_lints::inherent_to_string::INHERENT_TO_STRING_SHADOW_DISPLAY,
             ::clippy_lints::init_numbered_fields::INIT_NUMBERED_FIELDS,
-            ::clippy_lints::attrs::INLINE_ALWAYS,
+            ::clippy_lints::attrs::inline_always::INLINE_ALWAYS,
             ::clippy_lints::inline_fn_without_body::INLINE_FN_WITHOUT_BODY,
             ::clippy_lints::methods::INSPECT_FOR_EACH,
             ::clippy_lints::operators::INTEGER_DIVISION,
@@ -2876,7 +2876,7 @@ impl LintPass for CombinedClippyLatePass<'_> {
             ::clippy_lints::methods::REPEAT_ONCE,
             ::clippy_lints::repeat_vec_with_capacity::REPEAT_VEC_WITH_CAPACITY,
             ::clippy_lints::replace_box::REPLACE_BOX,
-            ::clippy_lints::attrs::REPR_PACKED_WITHOUT_ABI,
+            ::clippy_lints::attrs::repr_attributes::REPR_PACKED_WITHOUT_ABI,
             ::clippy_lints::reserve_after_initialization::RESERVE_AFTER_INITIALIZATION,
             ::clippy_lints::rest_when_destructuring_struct::REST_PATTERN_ACCESSIBLE_FIELD,
             ::clippy_lints::matches::REST_PAT_IN_FULLY_BOUND_STRUCTS,

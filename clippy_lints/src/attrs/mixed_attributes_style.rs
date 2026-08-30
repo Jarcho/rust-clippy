@@ -1,4 +1,3 @@
-use super::MIXED_ATTRIBUTES_STYLE;
 use clippy_utils::diagnostics::span_lint;
 use rustc_ast::{AttrKind, AttrStyle, Attribute, SyntheticAttr};
 use rustc_data_structures::fx::FxHashSet;
@@ -6,6 +5,43 @@ use rustc_lint::{EarlyContext, LintContext as _};
 use rustc_span::source_map::SourceMap;
 use rustc_span::{SourceFile, Span, Symbol};
 use std::sync::Arc;
+
+declare_clippy_lint! {
+    /// ### What it does
+    /// Checks for items that have the same kind of attributes with mixed styles (inner/outer).
+    ///
+    /// ### Why is this bad?
+    /// Having both style of said attributes makes it more complicated to read code.
+    ///
+    /// ### Known problems
+    /// This lint currently has false-negatives when mixing same attributes
+    /// but they have different path symbols, for example:
+    /// ```ignore
+    /// #[custom_attribute]
+    /// pub fn foo() {
+    ///     #![my_crate::custom_attribute]
+    /// }
+    /// ```
+    ///
+    /// ### Example
+    /// ```no_run
+    /// #[cfg(linux)]
+    /// pub fn foo() {
+    ///     #![cfg(windows)]
+    /// }
+    /// ```
+    /// Use instead:
+    /// ```no_run
+    /// #[cfg(linux)]
+    /// #[cfg(windows)]
+    /// pub fn foo() {
+    /// }
+    /// ```
+    #[clippy::version = "1.78.0"]
+    pub MIXED_ATTRIBUTES_STYLE,
+    style,
+    "item has both inner and outer attributes"
+}
 
 #[derive(Hash, PartialEq, Eq)]
 enum SimpleAttrKind {

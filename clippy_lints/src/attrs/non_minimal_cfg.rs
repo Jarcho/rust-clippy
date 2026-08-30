@@ -1,10 +1,34 @@
-use super::{Attribute, NON_MINIMAL_CFG};
+use super::Attribute;
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::SpanExt as _;
 use rustc_ast::{MetaItemInner, MetaItemKind};
 use rustc_errors::Applicability;
 use rustc_lint::EarlyContext;
 use rustc_span::sym;
+
+declare_clippy_lint! {
+    /// ### What it does
+    /// Checks for `any` and `all` combinators in `cfg` with only one condition.
+    ///
+    /// ### Why is this bad?
+    /// If there is only one condition, no need to wrap it into `any` or `all` combinators.
+    ///
+    /// ### Example
+    /// ```no_run
+    /// #[cfg(any(unix))]
+    /// pub struct Bar;
+    /// ```
+    ///
+    /// Use instead:
+    /// ```no_run
+    /// #[cfg(unix)]
+    /// pub struct Bar;
+    /// ```
+    #[clippy::version = "1.71.0"]
+    pub NON_MINIMAL_CFG,
+    style,
+    "ensure that all `cfg(any())` and `cfg(all())` have more than one condition"
+}
 
 pub(super) fn check(cx: &EarlyContext<'_>, attr: &Attribute) {
     if attr.has_name(sym::cfg)

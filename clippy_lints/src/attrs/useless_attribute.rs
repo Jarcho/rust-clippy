@@ -1,4 +1,3 @@
-use super::USELESS_ATTRIBUTE;
 use super::utils::{is_lint_level, is_word, namespace_and_lint};
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::source::{SpanExt as _, first_line_of_span};
@@ -6,6 +5,59 @@ use clippy_utils::sym;
 use rustc_ast::{Attribute, Item, ItemKind};
 use rustc_errors::Applicability;
 use rustc_lint::{EarlyContext, LintContext as _};
+
+declare_clippy_lint! {
+    /// ### What it does
+    /// Checks for `extern crate` and `use` items annotated with
+    /// lint attributes.
+    ///
+    /// This lint permits lint attributes for lints emitted on the items themself.
+    /// For `use` items these lints are:
+    /// * ambiguous_glob_reexports
+    /// * dead_code
+    /// * deprecated
+    /// * hidden_glob_reexports
+    /// * unreachable_pub
+    /// * unused
+    /// * unused_braces
+    /// * unused_import_braces
+    /// * clippy::disallowed_types
+    /// * clippy::enum_glob_use
+    /// * clippy::macro_use_imports
+    /// * clippy::module_name_repetitions
+    /// * clippy::redundant_pub_crate
+    /// * clippy::single_component_path_imports
+    /// * clippy::unsafe_removed_from_name
+    /// * clippy::wildcard_imports
+    ///
+    /// For `extern crate` items these lints are:
+    /// * `unused_imports` on items with `#[macro_use]`
+    ///
+    /// ### Why is this bad?
+    /// Lint attributes have no effect on crate imports. Most
+    /// likely a `!` was forgotten.
+    ///
+    /// ### Example
+    /// ```ignore
+    /// #[deny(dead_code)]
+    /// extern crate foo;
+    /// #[forbid(dead_code)]
+    /// use foo::bar;
+    /// ```
+    ///
+    /// Use instead:
+    /// ```rust,ignore
+    /// #[allow(unused_imports)]
+    /// use foo::baz;
+    /// #[allow(unused_imports)]
+    /// #[macro_use]
+    /// extern crate baz;
+    /// ```
+    #[clippy::version = "pre 1.29.0"]
+    pub USELESS_ATTRIBUTE,
+    correctness,
+    "use of lint attributes on `extern crate` items"
+}
 
 pub(super) fn check(cx: &EarlyContext<'_>, item: &Item, attrs: &[Attribute]) {
     let skip_unused_imports = attrs.iter().any(|attr| attr.has_name(sym::macro_use));

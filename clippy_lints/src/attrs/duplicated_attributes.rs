@@ -1,4 +1,3 @@
-use super::DUPLICATED_ATTRIBUTES;
 use clippy_utils::diagnostics::span_lint_and_then;
 use itertools::Itertools as _;
 use rustc_ast::{Attribute, MetaItem};
@@ -7,6 +6,32 @@ use rustc_data_structures::fx::FxHashMap;
 use rustc_lint::EarlyContext;
 use rustc_span::{Span, Symbol, sym};
 use std::collections::hash_map::Entry;
+
+declare_clippy_lint! {
+    /// ### What it does
+    /// Checks for attributes that appear two or more times.
+    ///
+    /// ### Why is this bad?
+    /// Repeating an attribute on the same item (or globally on the same crate)
+    /// is unnecessary and doesn't have an effect.
+    ///
+    /// ### Example
+    /// ```no_run
+    /// #[allow(dead_code)]
+    /// #[allow(dead_code)]
+    /// fn foo() {}
+    /// ```
+    ///
+    /// Use instead:
+    /// ```no_run
+    /// #[allow(dead_code)]
+    /// fn foo() {}
+    /// ```
+    #[clippy::version = "1.79.0"]
+    pub DUPLICATED_ATTRIBUTES,
+    suspicious,
+    "duplicated attribute"
+}
 
 fn emit_if_duplicated(
     cx: &EarlyContext<'_>,
