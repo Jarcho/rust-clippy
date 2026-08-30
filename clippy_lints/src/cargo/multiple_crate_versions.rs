@@ -6,7 +6,34 @@ use rustc_hir::def_id::LOCAL_CRATE;
 use rustc_lint::LateContext;
 use rustc_span::DUMMY_SP;
 
-use super::MULTIPLE_CRATE_VERSIONS;
+declare_clippy_lint! {
+    /// ### What it does
+    /// Checks to see if multiple versions of a crate are being
+    /// used.
+    ///
+    /// ### Why is this bad?
+    /// This bloats the size of targets, and can lead to
+    /// confusing error messages when structs or traits are used interchangeably
+    /// between different versions of a crate.
+    ///
+    /// ### Known problems
+    /// Because this can be caused purely by the dependencies
+    /// themselves, it's not always possible to fix this issue.
+    /// In those cases, you can allow that specific crate using
+    /// the `allowed-duplicate-crates` configuration option.
+    ///
+    /// ### Example
+    /// ```toml
+    /// # This will pull in both winapi v0.3.x and v0.2.x, triggering a warning.
+    /// [dependencies]
+    /// ctrlc = "=3.1.0"
+    /// ansi_term = "=0.11.0"
+    /// ```
+    #[clippy::version = "pre 1.29.0"]
+    pub MULTIPLE_CRATE_VERSIONS,
+    cargo,
+    "multiple versions of the same crate being used"
+}
 
 pub(super) fn check(cx: &LateContext<'_>, metadata: &Metadata, allowed_duplicate_crates: &FxHashSet<String>) {
     let local_name = cx.tcx.crate_name(LOCAL_CRATE);

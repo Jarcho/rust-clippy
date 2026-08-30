@@ -1,4 +1,3 @@
-use super::LINT_GROUPS_PRIORITY;
 use clippy_utils::diagnostics::span_lint_and_then;
 use rustc_data_structures::fx::FxHashSet;
 use rustc_errors::Applicability;
@@ -8,6 +7,43 @@ use std::ops::Range;
 use std::path::Path;
 use toml::Spanned;
 use toml::de::{DeTable, DeValue};
+
+declare_clippy_lint! {
+    /// ### What it does
+    /// Checks for lint groups with the same priority as lints in the `Cargo.toml`
+    /// [`[lints]` table](https://doc.rust-lang.org/cargo/reference/manifest.html#the-lints-section).
+    ///
+    /// This lint will be removed once [cargo#12918](https://github.com/rust-lang/cargo/issues/12918)
+    /// is resolved.
+    ///
+    /// ### Why is this bad?
+    /// The order of lints in the `[lints]` is ignored, to have a lint override a group the
+    /// `priority` field needs to be used, otherwise the sort order is undefined.
+    ///
+    /// ### Known problems
+    /// Does not check lints inherited using `lints.workspace = true`
+    ///
+    /// ### Example
+    /// ```toml
+    /// # Passed as `--allow=clippy::similar_names --warn=clippy::pedantic`
+    /// # which results in `similar_names` being `warn`
+    /// [lints.clippy]
+    /// pedantic = "warn"
+    /// similar_names = "allow"
+    /// ```
+    /// Use instead:
+    /// ```toml
+    /// # Passed as `--warn=clippy::pedantic --allow=clippy::similar_names`
+    /// # which results in `similar_names` being `allow`
+    /// [lints.clippy]
+    /// pedantic = { level = "warn", priority = -1 }
+    /// similar_names = "allow"
+    /// ```
+    #[clippy::version = "1.78.0"]
+    pub LINT_GROUPS_PRIORITY,
+    correctness,
+    "a lint group in `Cargo.toml` at the same priority as a lint"
+}
 
 fn toml_span(range: Range<usize>, file: &SourceFile) -> Span {
     Span::new(

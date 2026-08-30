@@ -3,7 +3,67 @@ use clippy_utils::diagnostics::span_lint_and_help;
 use rustc_lint::LateContext;
 use rustc_span::DUMMY_SP;
 
-use super::{NEGATIVE_FEATURE_NAMES, REDUNDANT_FEATURE_NAMES};
+declare_clippy_lint! {
+    /// ### What it does
+    /// Checks for negative feature names with prefix `no-` or `not-`
+    ///
+    /// ### Why is this bad?
+    /// Features are supposed to be additive, and negatively-named features violate it.
+    ///
+    /// ### Example
+    /// ```toml
+    /// # The `Cargo.toml` with negative feature names
+    /// [features]
+    /// default = []
+    /// no-abc = []
+    /// not-def = []
+    ///
+    /// ```
+    /// Use instead:
+    /// ```toml
+    /// [features]
+    /// default = ["abc", "def"]
+    /// abc = []
+    /// def = []
+    ///
+    /// ```
+    #[clippy::version = "1.57.0"]
+    pub NEGATIVE_FEATURE_NAMES,
+    cargo,
+    "usage of a negative feature name"
+}
+
+declare_clippy_lint! {
+    /// ### What it does
+    /// Checks for feature names with prefix `use-`, `with-` or suffix `-support`
+    ///
+    /// ### Why is this bad?
+    /// These prefixes and suffixes have no significant meaning.
+    ///
+    /// ### Example
+    /// ```toml
+    /// # The `Cargo.toml` with feature name redundancy
+    /// [features]
+    /// default = ["use-abc", "with-def", "ghi-support"]
+    /// use-abc = []  // redundant
+    /// with-def = []   // redundant
+    /// ghi-support = []   // redundant
+    /// ```
+    ///
+    /// Use instead:
+    /// ```toml
+    /// [features]
+    /// default = ["abc", "def", "ghi"]
+    /// abc = []
+    /// def = []
+    /// ghi = []
+    /// ```
+    ///
+    #[clippy::version = "1.57.0"]
+    pub REDUNDANT_FEATURE_NAMES,
+    cargo,
+    "usage of a redundant feature name"
+}
 
 static PREFIXES: [&str; 8] = ["no-", "no_", "not-", "not_", "use-", "use_", "with-", "with_"];
 static SUFFIXES: [&str; 2] = ["-support", "_support"];
