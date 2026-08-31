@@ -78,27 +78,40 @@ pub fn create(clippy_version: Version, pass: &str, name: &str, group: &str, has_
                 cx.arena.alloc_slice(buf)
             });
             lint_data.decl_range = lint_pass.decl_sp.range.end..lint_pass.decl_sp.range.end;
-            vacant_lint.insert(Lint {
+            let lint = vacant_lint.insert(Lint {
                 name_sp: Span::new(file, lint_data.decl_range),
                 version,
                 data: LintData::Active(lint_data),
             });
 
-            let add_mod = if let Some((path, "mod.rs" | "lib.rs")) = file.path.get().rsplit_once(path::MAIN_SEPARATOR) {
-                updater.write_new_file(String::from_iter([path, PATH_SEP, name_snake, ".rs"]), |dst| {
-                    write_lint_check_file(dst, name_upper, is_late_pass, has_msrv);
+            if let Some((path, "mod.rs" | "lib.rs")) = file.path.get().rsplit_once(path::MAIN_SEPARATOR) {
+                let path = cx.str_buf.alloc_collect(cx.arena, [path, PATH_SEP, name_snake, ".rs"]);
+                lint.name_sp.file = cx.source_files.alloc(SourceFile::new_empty(path));
+                let active_lint = ActiveLint {
+                    name: name_snake,
+                    version,
+                    data: &lint_data,
+                };
+                updater.write_new_file(path, |dst| {
+                    write_lint_check_file(dst, &active_lint, is_late_pass, has_msrv);
                 });
-                true
+                updater.change_loaded_file(file, |src, dst| {
+                    let pos = find_mod_decl_after(&mut Cursor::new(src), name_snake);
+                    let (pre, post) = src.split_at(pos.pos as usize);
+                    dst.push_str(pre);
+                    dst.extend(pos.insertion_text(name_snake));
+                    dst.push_str(post);
+                });
             } else {
-                false
+                updater.change_loaded_file(file, |src, dst| {
+                    let mut lints: Vec<_> = data.lints.lints_in_file(file).collect();
+                    let passes = data.lint_passes.all_in_same_file_as_mut(pass_idx);
+                    let mut ranges = VecBuf::with_capacity(lints.len() + passes.len());
+                    gen_sorted_lints_file(src, dst, &mut lints, passes, &mut ranges, &mut |src, dst| {
+                        dst.push_str(src)
+                    });
+                });
             };
-            updater.change_loaded_file(file, |src, dst| {
-                let mut lints: Vec<_> = data.lints.lints_in_file(file).collect();
-                let passes = data.lint_passes.all_in_same_file_as_mut(pass_idx);
-                let mut ranges = VecBuf::with_capacity(lints.len() + passes.len());
-                let mut copy = mk_sorted_lints_copy_fn(add_mod, name_snake);
-                gen_sorted_lints_file(src, dst, &mut lints, passes, &mut ranges, &mut copy);
-            });
         } else {
             // Create a new lint pass.
             let path = cx
@@ -208,7 +221,7 @@ static RESTRICTION_DESC: &str = "\
 /// ```";
 
 #[rustfmt::skip]
-fn write_lint_check_file(dst: &mut String, name_upper: &str, is_late_pass: bool, has_msrv: bool) {
+fn write_lint_check_file(dst: &mut String, lint: &ActiveLint<'_, '_>, is_late_pass: bool, has_msrv: bool) {
     let (cx_ty, cx_lt, msrv_arg, msrv_import) = if is_late_pass {
         ("LateContext", "<'_>", ", msrv: Msrv", "use clippy_utils::msrvs::{self, Msrv};\n")
     } else {
@@ -219,7 +232,9 @@ fn write_lint_check_file(dst: &mut String, name_upper: &str, is_late_pass: bool,
     dst.extend([
 msrv_import, "use rustc_lint::", cx_ty, ";
 
-use super::", name_upper, ";
+"]);
+    lint.gen_mac(dst);
+    dst.extend(["
 
 pub(super) fn check(cx: &", cx_ty, cx_lt, msrv_arg, ") {
     todo!(\"implement lint logic\");
@@ -342,22 +357,6 @@ impl ModPos {
             PosKind::Name => [mod_name, ";\npub mod ", ""],
             PosKind::End => ["\npub mod ", mod_name, ";"],
         }
-    }
-}
-
-/// Copies the source text to the destination adding a module declaration if `add_mod` is true.
-fn mk_sorted_lints_copy_fn(mut add_mod: bool, mod_name: &str) -> impl FnMut(&str, &mut String) {
-    move |src, dst| {
-        if add_mod {
-            add_mod = false;
-            let pos = find_mod_decl_after(&mut Cursor::new(src), mod_name);
-            let (pre, post) = src.split_at(pos.pos as usize);
-            dst.push_str(pre);
-            dst.extend(pos.insertion_text(mod_name));
-            dst.push_str(post);
-            return;
-        }
-        dst.push_str(src);
     }
 }
 
