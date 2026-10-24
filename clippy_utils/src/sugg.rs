@@ -1095,6 +1095,17 @@ impl<'tcx> Delegate<'tcx> for DerefDelegate<'_, 'tcx> {
     fn fake_read(&mut self, _: &PlaceWithHirId<'tcx>, _: FakeReadCause, _: HirId) {}
 }
 
+/// Gets the suggestion applicability for suitable for machine applicable changes in the
+/// given syntax context.
+#[inline]
+pub fn applicability_for_ctxt(ctxt: SyntaxContext) -> Applicability {
+    if ctxt.is_root() {
+        Applicability::MachineApplicable
+    } else {
+        Applicability::MaybeIncorrect
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::Sugg;

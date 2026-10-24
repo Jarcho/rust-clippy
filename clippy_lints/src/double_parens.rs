@@ -1,8 +1,10 @@
-use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::source::{SpanExt as _, snippet_with_applicability, snippet_with_context};
+use clippy_utils::diagnostics::span_lint_and_then;
+use clippy_utils::source::v2::SpanExt as _;
+use clippy_utils::sugg::applicability_for_ctxt;
 use rustc_ast::ast::{Expr, ExprKind, MethodCall};
-use rustc_errors::Applicability;
-use rustc_lint::{EarlyContext, EarlyLintPass, LintContext as _, declare_lint_pass};
+use rustc_lexer::is_whitespace;
+use rustc_lint::{EarlyContext, EarlyLintPass, declare_lint_pass};
+use rustc_span::RelativeBytePos;
 
 declare_clippy_lint! {
     /// ### What it does
@@ -41,81 +43,66 @@ declare_lint_pass!(DoubleParens => [DOUBLE_PARENS]);
 
 impl EarlyLintPass for DoubleParens {
     fn check_expr(&mut self, cx: &EarlyContext<'_>, expr: &Expr) {
-        match &expr.kind {
-            // ((..))
-            // ^^^^^^ expr
-            //  ^^^^  inner
-            ExprKind::Paren(inner)
-                if matches!(inner.kind, ExprKind::Paren(_) | ExprKind::Tup(_))
-                    && expr.span.eq_ctxt(inner.span)
-                    && !expr.span.in_external_macro(cx.sess().source_map())
-                    && check_source(cx, inner) =>
-            {
-                // suggest removing the outer parens
-
-                let mut applicability = Applicability::MachineApplicable;
-                // We don't need to use `snippet_with_context` here, because:
-                // - if `inner`'s `ctxt` is from macro, we don't lint in the first place (see the check above)
-                // - otherwise, calling `snippet_with_applicability` on a not-from-macro span is fine
-                let sugg = snippet_with_applicability(cx.sess(), inner.span, "_", &mut applicability);
-                span_lint_and_sugg(
-                    cx,
-                    DOUBLE_PARENS,
-                    expr.span,
-                    "unnecessary parentheses",
-                    "remove them",
-                    sugg.to_string(),
-                    applicability,
-                );
-            },
-
-            // func((n))
-            // ^^^^^^^^^ expr
-            //      ^^^  arg
-            //       ^   inner
+        let (inner, report_inner) = match &expr.kind {
+            ExprKind::Paren(inner) if let ExprKind::Paren(_) | ExprKind::Tup(_) = inner.kind => (inner, false),
             ExprKind::Call(_, args) | ExprKind::MethodCall(MethodCall { args, .. })
-                if let [arg] = &**args
-                    && let ExprKind::Paren(inner) = &arg.kind
-                    && expr.span.eq_ctxt(arg.span)
-                    && !arg.span.in_external_macro(cx.sess().source_map())
-                    && check_source(cx, arg) =>
+                if let [inner] = &**args
+                    && let ExprKind::Paren(_) = &inner.kind =>
             {
-                // suggest removing the inner parens
-
-                let mut applicability = Applicability::MachineApplicable;
-                let sugg = snippet_with_context(cx.sess(), inner.span, arg.span.ctxt(), "_", &mut applicability).0;
-                span_lint_and_sugg(
-                    cx,
-                    DOUBLE_PARENS,
-                    arg.span,
-                    "unnecessary parentheses",
-                    "remove them",
-                    sugg.to_string(),
-                    applicability,
-                );
+                (inner, true)
             },
-            _ => {},
-        }
-    }
-}
+            _ => return,
+        };
 
-/// Check that the span does indeed look like `(  (..)  )`
-fn check_source(cx: &EarlyContext<'_>, inner: &Expr) -> bool {
-    if let Some(sfr) = inner.span.get_source_range(cx)
-        // this is the same as `SourceFileRange::as_str`, but doesn't apply the range right away, because
-        // we're interested in the source code outside it
-        && let Some(src) = sfr.sf.src.as_ref().map(|src| src.as_str())
-        && let Some((start, outer_after_inner)) = src.split_at_checked(sfr.range.end)
-        && let Some((outer_before_inner, inner)) = start.split_at_checked(sfr.range.start)
-        && outer_before_inner.trim_end().ends_with('(')
-        && inner.starts_with('(')
-        && inner.ends_with(')')
-        && outer_after_inner.trim_start().starts_with(')')
-        // Don't lint macro repetition patterns like `($($result),*)` where parens are necessary
-        && !inner.trim_start_matches('(').trim_start().starts_with("$(")
-    {
-        true
-    } else {
-        false
+        let outer_sp = expr.span.data();
+        let inner_sp = inner.span.data();
+        if outer_sp.ctxt == inner_sp.ctxt
+            && let Some(spans) = outer_sp.map_split_range(cx, |scx, outer_range| {
+                let outer_src = scx.get_text(outer_range.clone())?;
+                let inner_start = inner_sp.lo.0.wrapping_sub(outer_sp.lo.0);
+                let inner_end = inner_sp.hi.0.wrapping_sub(outer_sp.lo.0);
+
+                // Check for the inner and outer parenthesis
+                let pre_len = outer_src
+                    .get(..inner_start as usize)?
+                    .trim_end_matches(is_whitespace)
+                    .strip_suffix('(')?
+                    .len() as u32;
+                if outer_src.get(inner_end as usize..)?.trim_start_matches(is_whitespace) != ")" {
+                    return None;
+                }
+                let inner_src = outer_src
+                    .get(inner_start as usize..inner_end as usize)?
+                    .strip_prefix('(')?
+                    .strip_suffix(')')?;
+
+                // Don't lint pattern expansions. e.g. `(($($var)*))` may expand to `((foo))` or
+                // `((foo, bar))` depending on what `$var` expands to.
+                inner_src
+                    .trim_start_matches(is_whitespace)
+                    .strip_prefix('$')
+                    .is_none_or(|text| !text.trim_start_matches(is_whitespace).starts_with('('))
+                    .then(|| {
+                        let (start, end) = if report_inner {
+                            (inner_start, outer_range.start.0 + inner_end)
+                        } else {
+                            (pre_len, outer_range.end.0)
+                        };
+                        let start = outer_range.start.0 + start;
+                        [
+                            RelativeBytePos(start)..RelativeBytePos(start + 1),
+                            RelativeBytePos(end - 1)..RelativeBytePos(end),
+                        ]
+                    })
+            })
+        {
+            span_lint_and_then(cx, DOUBLE_PARENS, Vec::from(spans), "unnecessary parentheses", |diag| {
+                diag.multipart_suggestion(
+                    "remove them",
+                    Vec::from(spans.map(|x| (x, String::new()))),
+                    applicability_for_ctxt(outer_sp.ctxt),
+                );
+            });
+        }
     }
 }
