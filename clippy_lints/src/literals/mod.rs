@@ -3,11 +3,11 @@ mod digit_groupings;
 mod mistyped_literal_suffix;
 
 use clippy_config::Conf;
-use clippy_utils::numeric_literal::{IntStr, NumericLiteral};
+use clippy_utils::numeric_literal::{FloatStr, IntStr, NumericLiteral, Radix};
 use clippy_utils::source::SpanExt as _;
 use rustc_ast::ast::{Expr, ExprKind, LitKind};
 use rustc_ast::token;
-use rustc_lint::{EarlyContext, EarlyLintPass, LintContext as _, impl_lint_pass};
+use rustc_lint::{EarlyContext, EarlyLintPass, impl_lint_pass};
 use rustc_span::Span;
 
 declare_clippy_lint! {
@@ -160,17 +160,25 @@ pub struct Literals {
 }
 
 impl EarlyLintPass for Literals {
-    fn check_expr(&mut self, cx: &EarlyContext<'_>, expr: &Expr) {
-        // `NumericLiteral::from_lit_kind` only accepts integer and float literals.
-        if let ExprKind::Lit(lit) = expr.kind
-            && matches!(lit.kind, token::LitKind::Integer | token::LitKind::Float)
-            && !expr.span.in_external_macro(cx.sess().source_map())
-        {
-            self.check_lit(cx, lit, expr.span);
-            if matches!(lit.kind, token::LitKind::Integer)
-                && let Some(num) = IntStr::from_token_lit(&lit)
-            {
-                decimal_literal_representation::check(cx, self.literal_representation_threshold, num, expr.span);
+    fn check_expr(&mut self, cx: &EarlyContext<'_>, e: &Expr) {
+        if let ExprKind::Lit(ref lit) = e.kind {
+            match lit.kind {
+                token::LitKind::Integer
+                    if let Some(num) = IntStr::from_token_lit(lit)
+                        && (num.suffix.is_some()
+                            || num.radix == Radix::Bin
+                            || !mistyped_literal_suffix::check_int(cx, num, e.span)) =>
+                {
+                    decimal_literal_representation::check(cx, self.literal_representation_threshold, num, e.span);
+                    self.check_lit(cx, *lit, e.span);
+                },
+                token::LitKind::Float
+                    if let Some(num) = FloatStr::from_token_lit(lit)
+                        && (num.suffix.is_some() || !mistyped_literal_suffix::check_float(cx, &num, e.span)) =>
+                {
+                    self.check_lit(cx, *lit, e.span);
+                },
+                _ => {},
             }
         }
     }
@@ -187,11 +195,8 @@ impl Literals {
     fn check_lit(&self, cx: &EarlyContext<'_>, lit: token::Lit, span: Span) {
         if let Some(src) = span.get_text(cx)
             && let Ok(lit_kind) = LitKind::from_token_lit(lit)
-            && let Some(mut num_lit) = NumericLiteral::from_lit_kind(&src, &lit_kind)
+            && let Some(num_lit) = NumericLiteral::from_lit_kind(&src, &lit_kind)
         {
-            if !mistyped_literal_suffix::check(cx, span, &mut num_lit) {
-                return;
-            }
             digit_groupings::check(cx, span, &num_lit, self.unreadable_literal_lint_fractions);
         }
     }

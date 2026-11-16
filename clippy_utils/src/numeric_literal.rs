@@ -1,5 +1,6 @@
+use core::num::NonZero;
 use rustc_ast::ast::{LitFloatType, LitIntType, LitKind};
-use rustc_ast::token;
+use rustc_ast::{FloatTy, token};
 use rustc_span::{BytePos, Span, SpanData, Symbol};
 use std::iter;
 
@@ -404,6 +405,19 @@ impl<'a> IntStr<'a> {
             false
         }
     }
+
+    /// Reformats the digits of this literal with the default digit grouping.
+    pub fn reformat_digits(&self) -> String {
+        // Allocate enough room to hold the formatted literal.
+        let mut sugg = Vec::with_capacity(self.text.len() + self.text.len() / 3);
+        let size = match self.radix {
+            Radix::Bin | Radix::Hex => 4u8,
+            Radix::Oct | Radix::Dec => 3u8,
+        };
+        reformat_int_rev_into(size, self.text, &mut sugg);
+        sugg.reverse();
+        String::from_utf8(sugg).unwrap_or_default()
+    }
 }
 
 macro_rules! impl_parse_int_as {
@@ -448,3 +462,155 @@ macro_rules! impl_parse_int_as {
     }
 }
 impl_parse_int_as!(u64 u128);
+
+pub fn float_ty_from_sym(sym: Symbol) -> Option<FloatTy> {
+    match sym {
+        sym::f16 => Some(FloatTy::F16),
+        sym::f32 => Some(FloatTy::F32),
+        sym::f64 => Some(FloatTy::F64),
+        sym::f128 => Some(FloatTy::F128),
+        _ => None,
+    }
+}
+
+/// The text of a floating point literal.
+#[derive(Clone, Copy)]
+pub struct FloatStr<'a> {
+    /// The literal without the suffix or suffix separator.
+    pub text: &'a str,
+    pub dot: Option<NonZero<u32>>,
+    pub exp: Option<NonZero<u32>>,
+    has_exp_sign: bool,
+    /// Whether there's an underscore separating the number and the suffix.
+    has_suffix_sep: bool,
+    pub suffix: Option<FloatTy>,
+}
+impl<'a> FloatStr<'a> {
+    /// Attempts to parse token literal. Returns `None` if the literal is not a floating
+    /// point literal or it has an unknown suffix.
+    #[expect(clippy::cast_possible_truncation)]
+    pub fn from_token_lit(lit: &'a token::Lit) -> Option<Self> {
+        let text = lit.symbol.as_str();
+        let (mut dot, mut exp) = (0u32, 0u32);
+        let mut has_exp_sign = false;
+        let mut iter = text.bytes().enumerate();
+        while let Some((i, c)) = iter.next() {
+            match c {
+                b'.' => dot = i as u32,
+                b'e' | b'E' => {
+                    exp = i as u32;
+                    if let Some((_, b'+' | b'-')) = iter.clone().next() {
+                        iter.next();
+                        has_exp_sign = true;
+                    }
+                },
+                _ => {},
+            }
+        }
+        let (text, has_suffix_sep, suffix) = match lit.suffix {
+            Some(suffix) => match float_ty_from_sym(suffix) {
+                Some(suffix) => match text.strip_suffix('_') {
+                    Some(text) => (text, true, Some(suffix)),
+                    None => (text, false, Some(suffix)),
+                },
+                None => return None,
+            },
+            None => (text, false, None),
+        };
+        Some(Self {
+            text,
+            dot: NonZero::new(dot),
+            exp: NonZero::new(exp),
+            has_exp_sign,
+            has_suffix_sep,
+            suffix,
+        })
+    }
+
+    /// Checks whether this literal's text exactly equals the unparsed text.
+    pub fn eq_str(&self, s: &str) -> bool {
+        let Some(s) = s.strip_prefix(self.text) else {
+            return false;
+        };
+        let s = match (self.has_suffix_sep, s.as_bytes()) {
+            (true, [b'_', s @ ..]) => s,
+            (true, _) => return false,
+            (false, s) => s,
+        };
+        s == self.suffix.map_or("", FloatTy::name_str).as_bytes()
+    }
+
+    /// Gets just the text of the exponent's digits. Returns `None` if there's no exponent.
+    pub fn exp_digits_str(&self) -> Option<&str> {
+        self.exp
+            .and_then(|pos| self.text.get(pos.get() as usize + 1 + usize::from(self.has_exp_sign)..))
+    }
+
+    /// Shrinks the token's span to contain just the exponent's digits.
+    ///
+    /// This functions assumes the span points to the literals text. This can be checked
+    /// using `eq_str` with the span's source text.
+    pub fn trim_sp_to_exp_digits(&self, sp: &SpanData) -> Span {
+        Span::new(
+            BytePos(sp.lo.0 + self.exp.map_or(0, NonZero::get) + 1 + u32::from(self.has_exp_sign)),
+            BytePos(sp.lo.0 + self.text.len() as u32),
+            sp.ctxt,
+            sp.parent,
+        )
+    }
+
+    /// Shrinks the token's span to remove both the exponent and the suffix.
+    ///
+    /// This functions assumes the span points to the literals text. This can be checked
+    /// using `eq_str` with the span's source text.
+    pub fn strip_exp_from_sp(&self, sp: &SpanData) -> Span {
+        Span::new(
+            sp.lo,
+            BytePos(match self.exp {
+                Some(exp) => {
+                    sp.lo.0 + exp.get()
+                        - u32::from(matches!(self.text.as_bytes().get(exp.get() as usize - 1), Some(b'_')))
+                },
+                None => sp.hi.0 - u32::from(self.has_suffix_sep) - self.suffix.map_or(0, |x| x.name_str().len() as u32),
+            }),
+            sp.ctxt,
+            sp.parent,
+        )
+    }
+
+    /// Gets the text for the whole part and the fractional part of the literal.
+    pub fn whole_fract_digits_str(&self) -> (&'a str, Option<&'a str>) {
+        let end = match self.exp {
+            Some(exp) => {
+                exp.get() as usize - usize::from(matches!(self.text.as_bytes().get(exp.get() as usize - 1), Some(b'_')))
+            },
+            None => self.text.len(),
+        };
+        if let Some(dot) = self.dot {
+            (
+                self.text.get(..dot.get() as usize).unwrap_or(self.text),
+                self.text.get(dot.get() as usize + 1..end),
+            )
+        } else {
+            (self.text.get(..end).unwrap_or(self.text), None)
+        }
+    }
+}
+
+/// Writes the digits into groups of the specified size in reverse (least significant
+/// first) order.
+fn reformat_int_rev_into(mut group_size: u8, num: &str, dst: &mut Vec<u8>) {
+    let mut i = group_size;
+    group_size -= 1;
+    for c in num.bytes().rev() {
+        if c != b'_' {
+            if let Some(x) = i.checked_sub(1) {
+                i = x;
+            } else {
+                let _ = dst.push_within_capacity(b'_');
+                i = group_size;
+            }
+            let _ = dst.push_within_capacity(c);
+        }
+    }
+}
