@@ -1,300 +1,422 @@
 error: the final digit group looks like a type suffix
-  --> tests/ui/mistyped_literal_suffix.rs:14:19
+  --> tests/ui/mistyped_literal_suffix.rs:24:17
    |
-LL |     let fail14 = 2_32;
-   |                   ^^^
+LL |     assert_eq!(0_8, 0, 8);
+   |                 ^^
    |
    = note: `-D clippy::mistyped-literal-suffixes` implied by `-D warnings`
    = help: to override `-D warnings` add `#[allow(clippy::mistyped_literal_suffixes)]`
 help: change the final digit group to a signed type
    |
-LL |     let fail14 = 2_i32;
-   |                    +
+LL |     assert_eq!(0_i8, 0, 8);
+   |                  +
 help: change the final digit group to an unsigned type
    |
-LL |     let fail14 = 2_u32;
-   |                    +
+LL |     assert_eq!(0_u8, 0, 8);
+   |                  +
 help: or adjust the digit groupings
    |
-LL -     let fail14 = 2_32;
-LL +     let fail14 = 232;
+LL -     assert_eq!(0_8, 0, 8);
+LL +     assert_eq!(08, 0, 8);
    |
 
 error: the final digit group looks like a type suffix
-  --> tests/ui/mistyped_literal_suffix.rs:16:19
+  --> tests/ui/mistyped_literal_suffix.rs:25:17
    |
-LL |     let fail15 = 4_64;
-   |                   ^^^
+LL |     assert_eq!(0_16, 0, 16);
+   |                 ^^^
    |
 help: change the final digit group to a signed type
    |
-LL |     let fail15 = 4_i64;
-   |                    +
+LL |     assert_eq!(0_i16, 0, 16);
+   |                  +
 help: change the final digit group to an unsigned type
    |
-LL |     let fail15 = 4_u64;
-   |                    +
+LL |     assert_eq!(0_u16, 0, 16);
+   |                  +
 help: or adjust the digit groupings
    |
-LL -     let fail15 = 4_64;
-LL +     let fail15 = 464;
+LL -     assert_eq!(0_16, 0, 16);
+LL +     assert_eq!(016, 0, 16);
    |
 
 error: the final digit group looks like a type suffix
-  --> tests/ui/mistyped_literal_suffix.rs:18:19
+  --> tests/ui/mistyped_literal_suffix.rs:26:17
    |
-LL |     let fail16 = 7_8; //
+LL |     assert_eq!(0_32, 0, 32);
+   |                 ^^^
+   |
+help: change the final digit group to a signed type
+   |
+LL |     assert_eq!(0_i32, 0, 32);
+   |                  +
+help: change the final digit group to an unsigned type
+   |
+LL |     assert_eq!(0_u32, 0, 32);
+   |                  +
+help: or adjust the digit groupings
+   |
+LL -     assert_eq!(0_32, 0, 32);
+LL +     assert_eq!(032, 0, 32);
+   |
+
+error: the final digit group looks like a type suffix
+  --> tests/ui/mistyped_literal_suffix.rs:27:17
+   |
+LL |     assert_eq!(0_64, 0, 64);
+   |                 ^^^
+   |
+help: change the final digit group to a signed type
+   |
+LL |     assert_eq!(0_i64, 0, 64);
+   |                  +
+help: change the final digit group to an unsigned type
+   |
+LL |     assert_eq!(0_u64, 0, 64);
+   |                  +
+help: or adjust the digit groupings
+   |
+LL -     assert_eq!(0_64, 0, 64);
+LL +     assert_eq!(064, 0, 64);
+   |
+
+error: the final digit group looks like a type suffix
+  --> tests/ui/mistyped_literal_suffix.rs:30:19
+   |
+LL |     assert_eq!(127_8, 127, 1278);
    |                   ^^
    |
 help: change the final digit group to a signed type
    |
-LL |     let fail16 = 7_i8; //
+LL |     assert_eq!(127_i8, 127, 1278);
    |                    +
 help: change the final digit group to an unsigned type
    |
-LL |     let fail16 = 7_u8; //
+LL |     assert_eq!(127_u8, 127, 1278);
    |                    +
 help: or adjust the digit groupings
    |
-LL -     let fail16 = 7_8; //
-LL +     let fail16 = 78; //
+LL -     assert_eq!(127_8, 127, 1278);
+LL +     assert_eq!(1_278, 127, 1278);
    |
 
 error: the final digit group looks like a type suffix
-  --> tests/ui/mistyped_literal_suffix.rs:21:20
+  --> tests/ui/mistyped_literal_suffix.rs:31:22
    |
-LL |     let fail17 = 23_16; //
-   |                    ^^^
+LL |     assert_eq!(32_767_16, 32_767, 3_276_716);
+   |                      ^^^
    |
 help: change the final digit group to a signed type
    |
-LL |     let fail17 = 23_i16; //
-   |                     +
+LL |     assert_eq!(32_767_i16, 32_767, 3_276_716);
+   |                       +
 help: change the final digit group to an unsigned type
    |
-LL |     let fail17 = 23_u16; //
-   |                     +
+LL |     assert_eq!(32_767_u16, 32_767, 3_276_716);
+   |                       +
 help: or adjust the digit groupings
    |
-LL -     let fail17 = 23_16; //
-LL +     let fail17 = 2_316; //
+LL -     assert_eq!(32_767_16, 32_767, 3_276_716);
+LL +     assert_eq!(3_276_716, 32_767, 3_276_716);
    |
 
 error: the final digit group looks like a type suffix
-  --> tests/ui/mistyped_literal_suffix.rs:26:20
+  --> tests/ui/mistyped_literal_suffix.rs:32:29
    |
-LL |     let fail20 = 2__8; //
-   |                    ^^
+LL |     assert_eq!(2_147_483_647_32, 2_147_483_647, 214_748_364_732);
+   |                             ^^^
    |
 help: change the final digit group to a signed type
    |
-LL |     let fail20 = 2__i8; //
-   |                     +
+LL |     assert_eq!(2_147_483_647_i32, 2_147_483_647, 214_748_364_732);
+   |                              +
 help: change the final digit group to an unsigned type
    |
-LL |     let fail20 = 2__u8; //
-   |                     +
+LL |     assert_eq!(2_147_483_647_u32, 2_147_483_647, 214_748_364_732);
+   |                              +
 help: or adjust the digit groupings
    |
-LL -     let fail20 = 2__8; //
-LL +     let fail20 = 28; //
+LL -     assert_eq!(2_147_483_647_32, 2_147_483_647, 214_748_364_732);
+LL +     assert_eq!(214_748_364_732, 2_147_483_647, 214_748_364_732);
    |
 
 error: the final digit group looks like a type suffix
-  --> tests/ui/mistyped_literal_suffix.rs:29:21
+  --> tests/ui/mistyped_literal_suffix.rs:34:34
    |
-LL |     let fail21 = 4___16; //
+LL |         9_223_372_036_854_775_807_64,
+   |                                  ^^^
+   |
+help: change the final digit group to a signed type
+   |
+LL |         9_223_372_036_854_775_807_i64,
+   |                                   +
+help: change the final digit group to an unsigned type
+   |
+LL |         9_223_372_036_854_775_807_u64,
+   |                                   +
+help: or adjust the digit groupings
+   |
+LL -         9_223_372_036_854_775_807_64,
+LL +         922_337_203_685_477_580_764,
+   |
+
+error: the final digit group looks like a type suffix
+  --> tests/ui/mistyped_literal_suffix.rs:40:19
+   |
+LL |     assert_eq!(128_8, 128, 1288);
+   |                   ^^
+   |
+help: change the final digit group to an unsigned type
+   |
+LL |     assert_eq!(128_u8, 128, 1288);
+   |                    +
+help: or adjust the digit groupings
+   |
+LL -     assert_eq!(128_8, 128, 1288);
+LL +     assert_eq!(1_288, 128, 1288);
+   |
+
+error: the final digit group looks like a type suffix
+  --> tests/ui/mistyped_literal_suffix.rs:41:22
+   |
+LL |     assert_eq!(32_768_16, 32_768, 3_276_816);
+   |                      ^^^
+   |
+help: change the final digit group to an unsigned type
+   |
+LL |     assert_eq!(32_768_u16, 32_768, 3_276_816);
+   |                       +
+help: or adjust the digit groupings
+   |
+LL -     assert_eq!(32_768_16, 32_768, 3_276_816);
+LL +     assert_eq!(3_276_816, 32_768, 3_276_816);
+   |
+
+error: the final digit group looks like a type suffix
+  --> tests/ui/mistyped_literal_suffix.rs:42:29
+   |
+LL |     assert_eq!(2_147_483_648_32, 2_147_483_648, 214_748_364_832);
+   |                             ^^^
+   |
+help: change the final digit group to an unsigned type
+   |
+LL |     assert_eq!(2_147_483_648_u32, 2_147_483_648, 214_748_364_832);
+   |                              +
+help: or adjust the digit groupings
+   |
+LL -     assert_eq!(2_147_483_648_32, 2_147_483_648, 214_748_364_832);
+LL +     assert_eq!(214_748_364_832, 2_147_483_648, 214_748_364_832);
+   |
+
+error: the final digit group looks like a type suffix
+  --> tests/ui/mistyped_literal_suffix.rs:44:34
+   |
+LL |         9_223_372_036_854_775_808_64,
+   |                                  ^^^
+   |
+help: change the final digit group to an unsigned type
+   |
+LL |         9_223_372_036_854_775_808_u64,
+   |                                   +
+help: or adjust the digit groupings
+   |
+LL -         9_223_372_036_854_775_808_64,
+LL +         922_337_203_685_477_580_864,
+   |
+
+error: the final digit group looks like a type suffix
+  --> tests/ui/mistyped_literal_suffix.rs:50:16
+   |
+LL |     assert_eq!(1.0e5_32, 1.0e5, 1.0e532);
+   |                ^^^^^^^^
+   |
+help: change the final digit group to a float type
+   |
+LL |     assert_eq!(1.0e5_f32, 1.0e5, 1.0e532);
+   |                      +
+help: or remove the digit groups from the exponent
+   |
+LL -     assert_eq!(1.0e5_32, 1.0e5, 1.0e532);
+LL +     assert_eq!(1.0e532, 1.0e5, 1.0e532);
+   |
+
+error: the final digit group looks like a type suffix
+  --> tests/ui/mistyped_literal_suffix.rs:51:16
+   |
+LL |     assert_eq!(1.0e5_64, 1.0e5, 1.0e564);
+   |                ^^^^^^^^
+   |
+help: change the final digit group to a float type
+   |
+LL |     assert_eq!(1.0e5_f64, 1.0e5, 1.0e564);
+   |                      +
+help: or remove the digit groups from the exponent
+   |
+LL -     assert_eq!(1.0e5_64, 1.0e5, 1.0e564);
+LL +     assert_eq!(1.0e564, 1.0e5, 1.0e564);
+   |
+
+error: the final digit group looks like a type suffix
+  --> tests/ui/mistyped_literal_suffix.rs:54:21
+   |
+LL |     assert_eq!(0o111_16, 0o111, 0o11116);
    |                     ^^^
    |
 help: change the final digit group to a signed type
    |
-LL |     let fail21 = 4___i16; //
+LL |     assert_eq!(0o111_i16, 0o111, 0o11116);
    |                      +
 help: change the final digit group to an unsigned type
    |
-LL |     let fail21 = 4___u16; //
+LL |     assert_eq!(0o111_u16, 0o111, 0o11116);
    |                      +
 help: or adjust the digit groupings
    |
-LL -     let fail21 = 4___16; //
-LL +     let fail21 = 416; //
+LL -     assert_eq!(0o111_16, 0o111, 0o11116);
+LL +     assert_eq!(0o11_116, 0o111, 0o11116);
    |
 
 error: the final digit group looks like a type suffix
-  --> tests/ui/mistyped_literal_suffix.rs:34:18
+  --> tests/ui/mistyped_literal_suffix.rs:55:25
    |
-LL |     let fail25 = 1E2_32;
-   |                  ^^^^^^
+LL |     assert_eq!(0o777_676_32, 0o777_676, 0o77_767_632);
+   |                         ^^^
    |
-help: change the final digit group to a float type
+help: change the final digit group to a signed type
    |
-LL |     let fail25 = 1E2_f32;
-   |                      +
-help: or remove the digit groups from the exponent
+LL |     assert_eq!(0o777_676_i32, 0o777_676, 0o77_767_632);
+   |                          +
+help: change the final digit group to an unsigned type
    |
-LL -     let fail25 = 1E2_32;
-LL +     let fail25 = 1E232;
+LL |     assert_eq!(0o777_676_u32, 0o777_676, 0o77_767_632);
+   |                          +
+help: or adjust the digit groupings
+   |
+LL -     assert_eq!(0o777_676_32, 0o777_676, 0o77_767_632);
+LL +     assert_eq!(0o77_767_632, 0o777_676, 0o77_767_632);
    |
 
 error: the final digit group looks like a type suffix
-  --> tests/ui/mistyped_literal_suffix.rs:36:18
+  --> tests/ui/mistyped_literal_suffix.rs:58:20
    |
-LL |     let fail26 = 43E7_64;
-   |                  ^^^^^^^
+LL |     assert_eq!(0x7F_8, 0x7F, 0x7F8);
+   |                    ^^
    |
-help: change the final digit group to a float type
+help: change the final digit group to a signed type
    |
-LL |     let fail26 = 43E7_f64;
+LL |     assert_eq!(0x7F_i8, 0x7F, 0x7F8);
+   |                     +
+help: change the final digit group to an unsigned type
+   |
+LL |     assert_eq!(0x7F_u8, 0x7F, 0x7F8);
+   |                     +
+help: or adjust the digit groupings
+   |
+LL -     assert_eq!(0x7F_8, 0x7F, 0x7F8);
+LL +     assert_eq!(0x7F8, 0x7F, 0x7F8);
+   |
+
+error: the final digit group looks like a type suffix
+  --> tests/ui/mistyped_literal_suffix.rs:59:22
+   |
+LL |     assert_eq!(0x0051_16, 0x0051, 0x00_5116);
+   |                      ^^^
+   |
+help: change the final digit group to a signed type
+   |
+LL |     assert_eq!(0x0051_i16, 0x0051, 0x00_5116);
    |                       +
-help: or remove the digit groups from the exponent
+help: change the final digit group to an unsigned type
    |
-LL -     let fail26 = 43E7_64;
-LL +     let fail26 = 43E764;
+LL |     assert_eq!(0x0051_u16, 0x0051, 0x00_5116);
+   |                       +
+help: or adjust the digit groupings
    |
-
-error: the final digit group looks like a type suffix
-  --> tests/ui/mistyped_literal_suffix.rs:38:18
-   |
-LL |     let fail27 = 243E17_32;
-   |                  ^^^^^^^^^
-   |
-help: change the final digit group to a float type
-   |
-LL |     let fail27 = 243E17_f32;
-   |                         +
-help: or remove the digit groups from the exponent
-   |
-LL -     let fail27 = 243E17_32;
-LL +     let fail27 = 243E1732;
+LL -     assert_eq!(0x0051_16, 0x0051, 0x00_5116);
+LL +     assert_eq!(0x00_5116, 0x0051, 0x00_5116);
    |
 
 error: the final digit group looks like a type suffix
-  --> tests/ui/mistyped_literal_suffix.rs:40:18
+  --> tests/ui/mistyped_literal_suffix.rs:60:27
    |
-LL |     let fail28 = 241251235E723_64;
-   |                  ^^^^^^^^^^^^^^^^
+LL |     assert_eq!(0x7FFF_0000_32, 0x7FFF_0000, 0x7F_FF00_0032);
+   |                           ^^^
    |
-help: change the final digit group to a float type
+help: change the final digit group to a signed type
    |
-LL |     let fail28 = 241251235E723_f64;
-   |                                +
-help: or remove the digit groups from the exponent
+LL |     assert_eq!(0x7FFF_0000_i32, 0x7FFF_0000, 0x7F_FF00_0032);
+   |                            +
+help: change the final digit group to an unsigned type
    |
-LL -     let fail28 = 241251235E723_64;
-LL +     let fail28 = 241251235E72364;
+LL |     assert_eq!(0x7FFF_0000_u32, 0x7FFF_0000, 0x7F_FF00_0032);
+   |                            +
+help: or adjust the digit groupings
+   |
+LL -     assert_eq!(0x7FFF_0000_32, 0x7FFF_0000, 0x7F_FF00_0032);
+LL +     assert_eq!(0x7F_FF00_0032, 0x7FFF_0000, 0x7F_FF00_0032);
    |
 
 error: the final digit group looks like a type suffix
-  --> tests/ui/mistyped_literal_suffix.rs:45:21
+  --> tests/ui/mistyped_literal_suffix.rs:61:32
    |
-LL |     let fail30 = 127_8; // should be i8
+LL |     assert_eq!(0x7abc_0000_1234_64, 0x7abc_0000_1234, 0x7a_bc00_0012_3464);
+   |                                ^^^
+   |
+help: change the final digit group to a signed type
+   |
+LL |     assert_eq!(0x7abc_0000_1234_i64, 0x7abc_0000_1234, 0x7a_bc00_0012_3464);
+   |                                 +
+help: change the final digit group to an unsigned type
+   |
+LL |     assert_eq!(0x7abc_0000_1234_u64, 0x7abc_0000_1234, 0x7a_bc00_0012_3464);
+   |                                 +
+help: or adjust the digit groupings
+   |
+LL -     assert_eq!(0x7abc_0000_1234_64, 0x7abc_0000_1234, 0x7a_bc00_0012_3464);
+LL +     assert_eq!(0x7a_bc00_0012_3464, 0x7abc_0000_1234, 0x7a_bc00_0012_3464);
+   |
+
+error: the final digit group looks like a type suffix
+  --> tests/ui/mistyped_literal_suffix.rs:65:21
+   |
+LL |         assert_eq!(0_8, 0, 8);
    |                     ^^
    |
+   = note: this error originates in the macro `__inline_mac_const__` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: change the final digit group to a signed type
    |
-LL |     let fail30 = 127_i8; // should be i8
+LL |         assert_eq!(0_i8, 0, 8);
    |                      +
 help: change the final digit group to an unsigned type
    |
-LL |     let fail30 = 127_u8; // should be i8
+LL |         assert_eq!(0_u8, 0, 8);
    |                      +
 help: or adjust the digit groupings
    |
-LL -     let fail30 = 127_8; // should be i8
-LL +     let fail30 = 1_278; // should be i8
+LL -         assert_eq!(0_8, 0, 8);
+LL +         assert_eq!(08, 0, 8);
    |
 
 error: the final digit group looks like a type suffix
-  --> tests/ui/mistyped_literal_suffix.rs:48:21
+  --> tests/ui/mistyped_literal_suffix.rs:66:21
    |
-LL |     let fail31 = 240_8; // should be u8
-   |                     ^^
+LL |         assert_eq!(0_16, 0, 16);
+   |                     ^^^
    |
+   = note: this error originates in the macro `__inline_mac_const__` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: change the final digit group to a signed type
+   |
+LL |         assert_eq!(0_i16, 0, 16);
+   |                      +
 help: change the final digit group to an unsigned type
    |
-LL |     let fail31 = 240_u8; // should be u8
+LL |         assert_eq!(0_u16, 0, 16);
    |                      +
 help: or adjust the digit groupings
    |
-LL -     let fail31 = 240_8; // should be u8
-LL +     let fail31 = 2_408; // should be u8
+LL -         assert_eq!(0_16, 0, 16);
+LL +         assert_eq!(016, 0, 16);
    |
 
-error: the final digit group looks like a type suffix
-  --> tests/ui/mistyped_literal_suffix.rs:52:24
-   |
-LL |     let fail33 = 0x1234_16;
-   |                        ^^^
-   |
-help: change the final digit group to a signed type
-   |
-LL |     let fail33 = 0x1234_i16;
-   |                         +
-help: change the final digit group to an unsigned type
-   |
-LL |     let fail33 = 0x1234_u16;
-   |                         +
-help: or adjust the digit groupings
-   |
-LL -     let fail33 = 0x1234_16;
-LL +     let fail33 = 0x12_3416;
-   |
-
-error: the final digit group looks like a type suffix
-  --> tests/ui/mistyped_literal_suffix.rs:54:24
-   |
-LL |     let fail34 = 0xABCD_16;
-   |                        ^^^
-   |
-help: change the final digit group to a signed type
-   |
-LL |     let fail34 = 0xABCD_i16;
-   |                         +
-help: change the final digit group to an unsigned type
-   |
-LL |     let fail34 = 0xABCD_u16;
-   |                         +
-help: or adjust the digit groupings
-   |
-LL -     let fail34 = 0xABCD_16;
-LL +     let fail34 = 0xAB_CD16;
-   |
-
-error: the final digit group looks like a type suffix
-  --> tests/ui/mistyped_literal_suffix.rs:57:39
-   |
-LL |     let fail36 = 0xFFFF_FFFF_FFFF_FFFF_64; // u64
-   |                                       ^^^
-   |
-help: change the final digit group to a signed type
-   |
-LL |     let fail36 = 0xFFFF_FFFF_FFFF_FFFF_i64; // u64
-   |                                        +
-help: change the final digit group to an unsigned type
-   |
-LL |     let fail36 = 0xFFFF_FFFF_FFFF_FFFF_u64; // u64
-   |                                        +
-help: or adjust the digit groupings
-   |
-LL -     let fail36 = 0xFFFF_FFFF_FFFF_FFFF_64; // u64
-LL +     let fail36 = 0xFF_FFFF_FFFF_FFFF_FF64; // u64
-   |
-
-error: the final digit group looks like a type suffix
-  --> tests/ui/mistyped_literal_suffix.rs:65:13
-   |
-LL |     let _ = 1.12345E1_32;
-   |             ^^^^^^^^^^^^
-   |
-help: change the final digit group to a float type
-   |
-LL |     let _ = 1.12345E1_f32;
-   |                       +
-help: or remove the digit groups from the exponent
-   |
-LL -     let _ = 1.12345E1_32;
-LL +     let _ = 1.12345E132;
-   |
-
-error: aborting due to 16 previous errors
+error: aborting due to 22 previous errors
 
